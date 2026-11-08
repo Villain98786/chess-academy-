@@ -1,0 +1,6 @@
+{
+  "name": "AI Chess Academy",
+  "description": "Master chess with interactive structured lessons, real Stockfish computer opponents, tactical puzzles, game analysis, and Gemini AI tutoring.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
