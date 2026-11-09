@@ -30,6 +30,7 @@ import {
   Zap,
   Compass,
   GraduationCap,
+  Play,
 } from 'lucide-react';
 
 interface AnalysisPageProps {
@@ -89,7 +90,6 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
     )
   );
 
-  // Opening identification
   const detectedOpening = useMemo(
     () => identifyOpeningFromMoves(activeGame.moves),
     [activeGame.moves]
@@ -192,7 +192,6 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
     };
   }, [activeGame]);
 
-  // Jump to specific ply and update GM Elena coaching explanation
   const handleSelectPly = (ply: number) => {
     if (ply < 0) {
       const startChess = new Chess();
@@ -256,13 +255,11 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
   const currentMove = currentPly >= 0 ? analyzedMoves[currentPly] : null;
   const currentScore = currentMove?.evalScore ?? 0;
 
-  // Critical moments list
   const criticalPlies = useMemo(
     () => detectCriticalMoments(analyzedMoves),
     [analyzedMoves]
   );
 
-  // Structured Post-Game Review with Phase Scores & Recommended Lessons
   const structuredReview = useMemo(
     () =>
       generateStructuredGameReview({
@@ -274,7 +271,6 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
     [analyzedMoves, activeGame.playerColor, activeGame.result, activeGame.reason]
   );
 
-  // Full Chess.com-style Accuracy & Classification breakdown
   const accuracyStats = useMemo(() => {
     const initCounts = () => ({
       brilliant: 0,
@@ -310,36 +306,55 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
   }, [analyzedMoves]);
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
-      {/* Overview Banner & Game Picker */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-neutral-900 border border-neutral-800 p-4 rounded-2xl shadow-md">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400">
-              <LineChartIcon className="w-4 h-4" />
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-white">Post-Game Engine Review</h2>
-                <span className="px-2 py-0.5 rounded bg-neutral-950 border border-neutral-800 text-[11px] font-semibold text-emerald-300 flex items-center gap-1">
-                  <BookOpen className="w-3 h-3 text-emerald-400" />
-                  {detectedOpening.eco}: {detectedOpening.name}
-                </span>
-              </div>
-              <p className="text-xs text-neutral-400 mt-0.5">
-                vs {activeGame.opponent} ({activeGame.opponentElo}) •{' '}
-                <span className="font-bold text-emerald-400 uppercase">{activeGame.result}</span> (
-                {activeGame.reason}) {isAnalyzing && '• Analyzing...'}
-              </p>
-            </div>
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
+      {/* Top Game Header & Match Selector (Stitch Screen 7) */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 bg-[#111624] border border-white/[0.08] p-4 sm:p-5 rounded-2xl shadow-xl">
+        <div className="flex flex-wrap items-center gap-3.5">
+          <div
+            className={`px-3 py-1.5 rounded-xl font-mono font-black text-sm border ${
+              activeGame.result === 'win'
+                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                : activeGame.result === 'loss'
+                ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+            }`}
+          >
+            {activeGame.result === 'win'
+              ? activeGame.playerColor === 'w'
+                ? '1 - 0'
+                : '0 - 1'
+              : activeGame.result === 'loss'
+              ? activeGame.playerColor === 'w'
+                ? '0 - 1'
+                : '1 - 0'
+              : '½ - ½'}
           </div>
 
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base sm:text-lg font-extrabold text-slate-100">
+                You vs. {activeGame.opponent} ({activeGame.opponentElo} Elo)
+              </h2>
+              <span className="px-2.5 py-0.5 rounded bg-[#171c2b] border border-white/10 text-[11px] font-mono font-bold text-cyan-400 flex items-center gap-1">
+                <BookOpen className="w-3 h-3 text-emerald-400" />
+                {detectedOpening.eco}: {detectedOpening.name}
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Result: <span className="font-bold text-emerald-400 uppercase">{activeGame.result}</span>{' '}
+              ({activeGame.reason}) • {analyzedMoves.length} Plies • Depth 24 NNUE Verified
+              {isAnalyzing && ' • Calculating...'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
           {stats.recentGames.length > 1 && (
             <select
               aria-label="Select Game to Analyze"
               value={selectedGameId}
               onChange={(e) => setSelectedGameId(e.target.value)}
-              className="text-xs bg-neutral-950 text-neutral-200 border border-neutral-700 rounded-xl px-3 py-1.5 focus:border-emerald-500 outline-hidden"
+              className="text-xs bg-[#0a0e18] text-slate-200 border border-white/10 rounded-xl px-3 py-2 focus:border-emerald-500 outline-hidden font-mono"
             >
               {stats.recentGames.map((g, i) => (
                 <option key={g.id} value={g.id}>
@@ -348,41 +363,173 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
               ))}
             </select>
           )}
-        </div>
 
-        {/* CAPS Accuracy Badges */}
-        <div className="flex items-center gap-3">
-          <div className="px-3.5 py-1.5 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-white shadow-xs" />
-            <div className="text-left">
-              <div className="text-[10px] text-neutral-400">White Accuracy</div>
-              <div className="text-sm font-black text-white font-mono">
+          <button
+            type="button"
+            onClick={() => onNavigate?.('play')}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-[#070a12] font-extrabold text-xs flex items-center gap-1.5 shadow-lg"
+          >
+            <Play className="w-3.5 h-3.5 fill-[#070a12]" />
+            <span>Play Rematch</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Core Accuracy Comparison & Move Classification Bento Row (Stitch Screen 7) */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+        {/* White & Black CAPS Accuracy Cards */}
+        <div className="xl:col-span-5 grid grid-cols-2 gap-4">
+          <div className="bg-[#111624] border border-white/[0.08] rounded-2xl p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm bg-slate-100 border border-white/20" />
+                <span className="text-xs font-bold text-slate-200">
+                  {activeGame.playerColor === 'w' ? 'You (White)' : activeGame.opponent}
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                CAPS
+              </span>
+            </div>
+            <div className="my-3">
+              <div className="text-3xl sm:text-4xl font-black font-mono text-emerald-400">
                 {accuracyStats.white.accuracy}%
               </div>
+              <div className="text-[10px] font-mono uppercase text-slate-400 mt-0.5">
+                Engine Precision Score
+              </div>
+            </div>
+            <div className="w-full h-1.5 bg-[#0a0e18] rounded-full overflow-hidden">
+              <div
+                className="bg-emerald-400 h-full rounded-full"
+                style={{ width: `${accuracyStats.white.accuracy}%` }}
+              />
             </div>
           </div>
 
-          <div className="px-3.5 py-1.5 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-neutral-600 shadow-xs" />
-            <div className="text-left">
-              <div className="text-[10px] text-neutral-400">Black Accuracy</div>
-              <div className="text-sm font-black text-neutral-200 font-mono">
+          <div className="bg-[#111624] border border-white/[0.08] rounded-2xl p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm bg-slate-700 border border-white/20" />
+                <span className="text-xs font-bold text-slate-200">
+                  {activeGame.playerColor === 'b' ? 'You (Black)' : activeGame.opponent}
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">
+                CAPS
+              </span>
+            </div>
+            <div className="my-3">
+              <div className="text-3xl sm:text-4xl font-black font-mono text-slate-100">
                 {accuracyStats.black.accuracy}%
               </div>
+              <div className="text-[10px] font-mono uppercase text-slate-400 mt-0.5">
+                Engine Precision Score
+              </div>
+            </div>
+            <div className="w-full h-1.5 bg-[#0a0e18] rounded-full overflow-hidden">
+              <div
+                className="bg-cyan-400 h-full rounded-full"
+                style={{ width: `${accuracyStats.black.accuracy}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Move Quality Classification Bento Matrix */}
+        <div className="xl:col-span-7 bg-[#111624] border border-white/[0.08] rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+              Move Quality Breakdown (White / Black)
+            </span>
+            <span className="text-[10px] font-mono text-slate-400">
+              10-Tier Classification Matrix
+            </span>
+          </div>
+
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 text-center text-xs">
+            <div className="p-2.5 rounded-xl bg-[#171c2b] border border-cyan-500/30">
+              <div className="text-[10px] text-cyan-300 font-bold flex items-center justify-center gap-0.5">
+                <Sparkles className="w-3 h-3" /> !!
+              </div>
+              <div className="text-xs font-black text-white font-mono mt-1">
+                {accuracyStats.white.brilliant} / {accuracyStats.black.brilliant}
+              </div>
+              <div className="text-[9px] text-slate-400 mt-0.5">Brilliant</div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-[#171c2b] border border-emerald-500/30">
+              <div className="text-[10px] text-emerald-400 font-bold flex items-center justify-center gap-0.5">
+                <CheckCircle className="w-3 h-3" /> ★
+              </div>
+              <div className="text-xs font-black text-white font-mono mt-1">
+                {accuracyStats.white.best + accuracyStats.white.great} /{' '}
+                {accuracyStats.black.best + accuracyStats.black.great}
+              </div>
+              <div className="text-[9px] text-slate-400 mt-0.5">Best/Great</div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-[#171c2b] border border-teal-500/30">
+              <div className="text-[10px] text-teal-300 font-bold">! / ✓</div>
+              <div className="text-xs font-black text-white font-mono mt-1">
+                {accuracyStats.white.excellent + accuracyStats.white.good} /{' '}
+                {accuracyStats.black.excellent + accuracyStats.black.good}
+              </div>
+              <div className="text-[9px] text-slate-400 mt-0.5">Exc/Good</div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-[#171c2b] border border-amber-500/30">
+              <div className="text-[10px] text-amber-400 font-bold flex items-center justify-center gap-0.5">
+                <HelpCircle className="w-3 h-3" /> ?!
+              </div>
+              <div className="text-xs font-black text-white font-mono mt-1">
+                {accuracyStats.white.inaccuracy} / {accuracyStats.black.inaccuracy}
+              </div>
+              <div className="text-[9px] text-slate-400 mt-0.5">Inacc.</div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-[#171c2b] border border-yellow-500/30">
+              <div className="text-[10px] text-yellow-300 font-bold">⚡</div>
+              <div className="text-xs font-black text-white font-mono mt-1">
+                {accuracyStats.white.missed_win} / {accuracyStats.black.missed_win}
+              </div>
+              <div className="text-[9px] text-slate-400 mt-0.5">Missed</div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-[#171c2b] border border-orange-500/30">
+              <div className="text-[10px] text-orange-400 font-bold flex items-center justify-center gap-0.5">
+                <AlertTriangle className="w-3 h-3" /> ?
+              </div>
+              <div className="text-xs font-black text-white font-mono mt-1">
+                {accuracyStats.white.mistake} / {accuracyStats.black.mistake}
+              </div>
+              <div className="text-[9px] text-slate-400 mt-0.5">Mistake</div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-[#171c2b] border border-rose-500/30">
+              <div className="text-[10px] text-rose-400 font-bold flex items-center justify-center gap-0.5">
+                <XCircle className="w-3 h-3" /> ??
+              </div>
+              <div className="text-xs font-black text-white font-mono mt-1">
+                {accuracyStats.white.blunder} / {accuracyStats.black.blunder}
+              </div>
+              <div className="text-[9px] text-slate-400 mt-0.5">Blunder</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Analysis Layout */}
+      {/* Main 12-Col Split View: Replay Board + Centipawn Graph + Grandmaster Coach */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left: Replay Board & Controls */}
-        <div className="lg:col-span-7 flex flex-col items-center bg-neutral-900 border border-neutral-800 rounded-2xl p-4 sm:p-6 shadow-xl space-y-4">
-          <div className="w-full max-w-[520px] flex flex-wrap items-center justify-between gap-2 text-xs px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-xl">
+        {/* Left 7 Cols: Replay Board, Controls, Critical Moments, Phase Performance */}
+        <div className="lg:col-span-7 flex flex-col items-center bg-[#111624] border border-white/[0.08] rounded-2xl p-4 sm:p-6 shadow-2xl space-y-4">
+          <div className="w-full max-w-[540px] flex flex-wrap items-center justify-between gap-2 text-xs px-3.5 py-2.5 bg-[#171c2b] border border-white/[0.07] rounded-xl">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-white">
+              <span className="font-bold text-slate-100">
                 {currentMove
-                  ? `Ply ${currentPly + 1} (${currentMove.color === 'w' ? 'White' : 'Black'}): ${currentMove.san}`
+                  ? `Ply ${currentPly + 1} (${currentMove.color === 'w' ? 'White' : 'Black'}): ${
+                      currentMove.san
+                    }`
                   : 'Initial Position'}
               </span>
               {currentMove?.classification && (
@@ -419,13 +566,13 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
             </div>
           </div>
 
-          <div className="flex gap-3 items-stretch justify-center w-full">
+          <div className="flex gap-2.5 sm:gap-3.5 items-stretch justify-center w-full">
             <EvalBar
               score={currentScore}
               orientation={activeGame.playerColor}
-              className="h-auto min-h-[320px] max-h-[520px]"
+              className="h-auto min-h-[300px] max-h-[540px]"
             />
-            <div className="flex-1 max-w-[520px] aspect-square flex items-center justify-center">
+            <div className="flex-1 max-w-[540px] aspect-square flex items-center justify-center">
               <Chessboard
                 chess={chess}
                 orientation={activeGame.playerColor}
@@ -447,12 +594,12 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
           </div>
 
           {/* Playback Navigation */}
-          <div className="w-full max-w-[520px] flex items-center justify-center gap-2 pt-2">
+          <div className="w-full max-w-[540px] flex items-center justify-center gap-2 pt-2">
             <button
               type="button"
               onClick={() => handleSelectPly(-1)}
               disabled={currentPly === -1}
-              className="p-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 disabled:opacity-30"
+              className="p-2 rounded-xl bg-[#171c2b] hover:bg-[#1f2638] text-slate-300 disabled:opacity-30"
               title="First move"
             >
               <ChevronFirst className="w-4 h-4" />
@@ -461,19 +608,19 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
               type="button"
               onClick={() => handleSelectPly(Math.max(-1, currentPly - 1))}
               disabled={currentPly === -1}
-              className="p-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 disabled:opacity-30"
+              className="p-2 rounded-xl bg-[#171c2b] hover:bg-[#1f2638] text-slate-300 disabled:opacity-30"
               title="Previous ply"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="font-mono text-xs px-3 text-neutral-400">
-              {currentPly + 1} / {analyzedMoves.length}
+            <span className="font-mono text-xs px-4 py-1.5 rounded-lg bg-[#0a0e18] border border-white/10 text-emerald-400 font-bold">
+              Ply {currentPly + 1} / {analyzedMoves.length}
             </span>
             <button
               type="button"
               onClick={() => handleSelectPly(Math.min(analyzedMoves.length - 1, currentPly + 1))}
               disabled={currentPly >= analyzedMoves.length - 1}
-              className="p-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 disabled:opacity-30"
+              className="p-2 rounded-xl bg-[#171c2b] hover:bg-[#1f2638] text-slate-300 disabled:opacity-30"
               title="Next ply"
             >
               <ChevronRight className="w-4 h-4" />
@@ -482,7 +629,7 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
               type="button"
               onClick={() => handleSelectPly(analyzedMoves.length - 1)}
               disabled={currentPly >= analyzedMoves.length - 1}
-              className="p-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 disabled:opacity-30"
+              className="p-2 rounded-xl bg-[#171c2b] hover:bg-[#1f2638] text-slate-300 disabled:opacity-30"
               title="Last move"
             >
               <ChevronLast className="w-4 h-4" />
@@ -491,7 +638,7 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
 
           {/* Critical Moments Jumper */}
           {criticalPlies.length > 0 && (
-            <div className="w-full max-w-[520px] bg-neutral-950 border border-neutral-800 rounded-xl p-3 space-y-2">
+            <div className="w-full max-w-[540px] bg-[#0a0e18] border border-white/[0.07] rounded-xl p-3.5 space-y-2">
               <div className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5" />
                 <span>Key Critical Moments ({criticalPlies.length})</span>
@@ -508,8 +655,8 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
                       onClick={() => handleSelectPly(plyIdx)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-mono border transition-colors ${
                         currentPly === plyIdx
-                          ? 'bg-amber-500/20 border-amber-400 text-white'
-                          : 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:text-white'
+                          ? 'bg-amber-500/20 border-amber-400 text-white font-bold'
+                          : 'bg-[#171c2b] border-white/10 text-slate-300 hover:text-white'
                       }`}
                     >
                       {moveNum}
@@ -522,44 +669,44 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
           )}
 
           {/* Phase Performance & Personalized Recommended Lessons */}
-          <div className="w-full max-w-[520px] bg-neutral-950 border border-neutral-800 rounded-xl p-3.5 space-y-3">
-            <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="w-full max-w-[540px] bg-[#0a0e18] border border-white/[0.07] rounded-xl p-4 space-y-3">
+            <div className="grid grid-cols-3 gap-2.5 text-center">
               {[
                 {
-                  label: 'Opening',
+                  label: 'Opening Phase',
                   score: structuredReview.phasePerformance.openingScore,
                   grade: structuredReview.phasePerformance.openingGrade,
                 },
                 {
-                  label: 'Tactics',
+                  label: 'Tactical Phase',
                   score: structuredReview.phasePerformance.tacticalScore,
                   grade: structuredReview.phasePerformance.tacticalGrade,
                 },
                 {
-                  label: 'Endgame',
+                  label: 'Endgame Phase',
                   score: structuredReview.phasePerformance.endgameScore,
                   grade: structuredReview.phasePerformance.endgameGrade,
                 },
               ].map((item) => (
                 <div
                   key={item.label}
-                  className="p-2 rounded-lg bg-neutral-900 border border-neutral-800"
+                  className="p-2.5 rounded-xl bg-[#171c2b] border border-white/[0.06]"
                 >
-                  <div className="text-[10px] font-bold uppercase text-neutral-400">
+                  <div className="text-[10px] font-bold uppercase text-slate-400">
                     {item.label}
                   </div>
-                  <div className="text-sm font-black text-emerald-400 font-mono">
+                  <div className="text-base font-black text-emerald-400 font-mono mt-0.5">
                     {item.score}%
                   </div>
-                  <div className="text-[10px] text-neutral-400">{item.grade}</div>
+                  <div className="text-[10px] text-slate-400">{item.grade}</div>
                 </div>
               ))}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2 pt-1">
               <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                 <GraduationCap className="w-3.5 h-3.5" />
-                <span>Recommended Lessons for Improvement</span>
+                <span>Recommended Lessons Based on This Match</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {structuredReview.recommendedLessons.map((rec) => (
@@ -572,13 +719,13 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
                         lessonId: rec.lessonId,
                       })
                     }
-                    className="p-2.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-emerald-500/40 text-left transition-all"
+                    className="p-3 rounded-xl bg-[#171c2b] hover:bg-[#1f2638] border border-white/[0.06] hover:border-emerald-500/40 text-left transition-all"
                   >
-                    <div className="text-[10px] font-bold uppercase text-emerald-400">
+                    <div className="text-[10px] font-mono font-bold uppercase text-emerald-400">
                       Level {rec.levelNumber} • {rec.courseId}
                     </div>
-                    <div className="text-xs font-bold text-white mt-0.5">{rec.title}</div>
-                    <div className="text-[10px] text-neutral-400 mt-0.5 line-clamp-2">
+                    <div className="text-xs font-bold text-slate-100 mt-0.5">{rec.title}</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-2">
                       {rec.reason}
                     </div>
                   </button>
@@ -588,7 +735,7 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
           </div>
         </div>
 
-        {/* Right: Grandmaster Coach, Evaluation Graph, Classification Breakdown & Move List */}
+        {/* Right 5 Cols: Grandmaster Coach, Centipawn Evaluation Flowchart & Move History */}
         <div className="lg:col-span-5 space-y-4">
           <GrandmasterCoach
             fen={chess.fen()}
@@ -600,19 +747,20 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
             }
           />
 
-          {/* Centipawn Evaluation Chart */}
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-md space-y-3">
+          {/* Centipawn Evaluation Flowchart */}
+          <div className="bg-[#111624] border border-white/[0.08] rounded-2xl p-4 shadow-xl space-y-3">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-neutral-300 uppercase tracking-wider">
-                Centipawn Advantage Graph
+              <span className="font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                <LineChartIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Centipawn Evaluation Flowchart</span>
               </span>
-              <span className="font-mono text-neutral-500 text-[10px]">
+              <span className="font-mono text-slate-400 text-[10px]">
                 Click move below to scrub
               </span>
             </div>
 
-            <div className="relative h-24 w-full bg-neutral-950 rounded-xl border border-neutral-850 p-2 overflow-hidden flex items-center">
-              <div className="absolute inset-x-0 top-1/2 border-b border-dashed border-neutral-700 pointer-events-none" />
+            <div className="relative h-28 w-full bg-[#0a0e18] rounded-xl border border-white/[0.06] p-2 overflow-hidden flex items-center">
+              <div className="absolute inset-x-0 top-1/2 border-b border-dashed border-white/15 pointer-events-none" />
 
               {evalScores.length > 1 && (
                 <svg
@@ -620,6 +768,22 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
                   preserveAspectRatio="none"
                   viewBox={`0 0 ${evalScores.length - 1} 100`}
                 >
+                  <defs>
+                    <linearGradient id="evalAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity="0.02" />
+                    </linearGradient>
+                  </defs>
+                  <polygon
+                    fill="url(#evalAreaGrad)"
+                    points={`0,50 ${evalScores
+                      .map((val, idx) => {
+                        const clamped = Math.max(-1000, Math.min(1000, val));
+                        const y = 50 - (clamped / 1000) * 45;
+                        return `${idx},${y}`;
+                      })
+                      .join(' ')} ${evalScores.length - 1},50`}
+                  />
                   <polyline
                     fill="none"
                     stroke="#10b981"
@@ -654,88 +818,13 @@ export const AnalysisPage: React.FC<AnalysisPageProps> = ({
             </div>
           </div>
 
-          {/* Complete Move Classification Breakdown */}
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-md space-y-3">
-            <h4 className="text-xs font-bold text-neutral-300 uppercase tracking-wider">
-              Move Quality Summary (White / Black)
-            </h4>
-
-            <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 text-center text-xs">
-              <div className="p-2 rounded-xl bg-neutral-950 border border-cyan-500/30">
-                <div className="text-[10px] text-cyan-300 font-bold flex items-center justify-center gap-0.5">
-                  <Sparkles className="w-3 h-3" /> !!
-                </div>
-                <div className="text-xs font-black text-white font-mono mt-0.5">
-                  {accuracyStats.white.brilliant} / {accuracyStats.black.brilliant}
-                </div>
-                <div className="text-[9px] text-neutral-500">Brilliant</div>
-              </div>
-
-              <div className="p-2 rounded-xl bg-neutral-950 border border-emerald-500/30">
-                <div className="text-[10px] text-emerald-400 font-bold flex items-center justify-center gap-0.5">
-                  <CheckCircle className="w-3 h-3" /> ★
-                </div>
-                <div className="text-xs font-black text-white font-mono mt-0.5">
-                  {accuracyStats.white.best + accuracyStats.white.great} /{' '}
-                  {accuracyStats.black.best + accuracyStats.black.great}
-                </div>
-                <div className="text-[9px] text-neutral-500">Best/Great</div>
-              </div>
-
-              <div className="p-2 rounded-xl bg-neutral-950 border border-teal-500/30">
-                <div className="text-[10px] text-teal-300 font-bold">! / ✓</div>
-                <div className="text-xs font-black text-white font-mono mt-0.5">
-                  {accuracyStats.white.excellent + accuracyStats.white.good} /{' '}
-                  {accuracyStats.black.excellent + accuracyStats.black.good}
-                </div>
-                <div className="text-[9px] text-neutral-500">Exc/Good</div>
-              </div>
-
-              <div className="p-2 rounded-xl bg-neutral-950 border border-amber-500/30">
-                <div className="text-[10px] text-amber-400 font-bold flex items-center justify-center gap-0.5">
-                  <HelpCircle className="w-3 h-3" /> ?!
-                </div>
-                <div className="text-xs font-black text-white font-mono mt-0.5">
-                  {accuracyStats.white.inaccuracy} / {accuracyStats.black.inaccuracy}
-                </div>
-                <div className="text-[9px] text-neutral-500">Inacc.</div>
-              </div>
-
-              <div className="p-2 rounded-xl bg-neutral-950 border border-yellow-500/30">
-                <div className="text-[10px] text-yellow-300 font-bold">⚡</div>
-                <div className="text-xs font-black text-white font-mono mt-0.5">
-                  {accuracyStats.white.missed_win} / {accuracyStats.black.missed_win}
-                </div>
-                <div className="text-[9px] text-neutral-500">Missed</div>
-              </div>
-
-              <div className="p-2 rounded-xl bg-neutral-950 border border-orange-500/30">
-                <div className="text-[10px] text-orange-400 font-bold flex items-center justify-center gap-0.5">
-                  <AlertTriangle className="w-3 h-3" /> ?
-                </div>
-                <div className="text-xs font-black text-white font-mono mt-0.5">
-                  {accuracyStats.white.mistake} / {accuracyStats.black.mistake}
-                </div>
-                <div className="text-[9px] text-neutral-500">Mistake</div>
-              </div>
-
-              <div className="p-2 rounded-xl bg-neutral-950 border border-rose-500/30">
-                <div className="text-[10px] text-rose-400 font-bold flex items-center justify-center gap-0.5">
-                  <XCircle className="w-3 h-3" /> ??
-                </div>
-                <div className="text-xs font-black text-white font-mono mt-0.5">
-                  {accuracyStats.white.blunder} / {accuracyStats.black.blunder}
-                </div>
-                <div className="text-[9px] text-neutral-500">Blunder</div>
-              </div>
-            </div>
-          </div>
-
           {/* Interactive Move History Table */}
           <MoveHistory
             moves={analyzedMoves}
             currentMoveIndex={currentPly}
             onSelectMove={handleSelectPly}
+            openingEco={detectedOpening.eco}
+            openingName={detectedOpening.name}
           />
         </div>
       </div>

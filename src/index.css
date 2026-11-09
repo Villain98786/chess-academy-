@@ -1,11 +1,101 @@
 @import "tailwindcss";
 
+:root {
+  /* Surface Hierarchy (Dark Mode Only — Grandmaster Studio) */
+  --surface-canvas: #070a12;
+  --surface-container-lowest: #0a0e18;
+  --surface-container-low: #111624;
+  --surface-container: #171c2b;
+  --surface-container-high: #1f2638;
+  --surface-container-highest: #283147;
+  --surface-glass: rgba(23, 28, 43, 0.78);
+
+  /* Border & Divider Tokens */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.12);
+  --border-focus: rgba(16, 185, 129, 0.50);
+
+  /* Brand & Semantic Accents */
+  --primary: #10b981;
+  --primary-bright: #4edea3;
+  --primary-hover: #059669;
+  --primary-glow: rgba(16, 185, 129, 0.18);
+  --secondary: #f59e0b;
+  --secondary-bright: #ffb95f;
+  --tertiary: #06b6d4;
+  --tertiary-bright: #4cd7f6;
+  --error: #ef4444;
+  --warning: #f97316;
+
+  /* Text Hierarchy */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* Chessboard & Evaluation Specific Tokens */
+  --board-square-light: #2d3548;
+  --board-square-dark: #1a202e;
+  --board-highlight-origin: rgba(16, 185, 129, 0.28);
+  --board-highlight-target: rgba(16, 185, 129, 0.45);
+  --board-highlight-check: rgba(239, 68, 68, 0.55);
+  --board-arrow-primary: #06b6d4;
+  --eval-white: #f8fafc;
+  --eval-black: #0f172a;
+
+  /* Typography */
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.55);
+  --shadow-board: 0 20px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-glow-emerald: 0 0 24px rgba(16, 185, 129, 0.25);
+}
+
 @layer base {
   body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #0d1117;
-    color: #f3f4f6;
+    font-family: var(--font-sans);
+    background-color: var(--surface-canvas);
+    color: var(--text-primary);
+    overflow-x: hidden;
   }
+}
+
+/* Digital Fischer Clock (DESIGN.md 6.2) */
+.chess-clock {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-container-lowest);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  padding: 0.4rem 0.85rem;
+}
+
+.chess-clock.active {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-glow-emerald);
+  color: var(--text-primary);
+}
+
+/* AI Grandmaster Coach Speech Bubble (DESIGN.md 6.3) */
+.coach-bubble {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.10) 0%, rgba(23, 28, 43, 0.95) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-left: 3px solid var(--primary);
+  border-radius: 0 12px 12px 12px;
+}
+
+/* Glass Surface Panel */
+.glass-panel {
+  background: var(--surface-glass);
+  backdrop-filter: blur(16px);
+}
+
+/* Subtle Board Coordinate Grid Texture */
+.bg-studio-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 @keyframes shake {
@@ -18,18 +108,33 @@
   animation: shake 0.4s ease-in-out;
 }
 
+@keyframes audio-pulse {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+
+.animate-audio-bar-1 {
+  animation: audio-pulse 0.8s ease-in-out infinite;
+}
+.animate-audio-bar-2 {
+  animation: audio-pulse 0.6s ease-in-out infinite 0.15s;
+}
+.animate-audio-bar-3 {
+  animation: audio-pulse 0.9s ease-in-out infinite 0.3s;
+}
+
 /* Custom Sleek Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #111827;
+  background: #0a0e18;
 }
 ::-webkit-scrollbar-thumb {
-  background: #374151;
+  background: #1f2638;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #4b5563;
+  background: #283147;
 }

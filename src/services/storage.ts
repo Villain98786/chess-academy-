@@ -5,7 +5,7 @@ const STATS_KEY = 'ai_chess_academy_stats_v2';
 const SETTINGS_KEY = 'ai_chess_academy_settings';
 
 const DEFAULT_SETTINGS: AppSettings = {
-  boardTheme: 'emerald',
+  boardTheme: 'grandmaster',
   pieceTheme: 'classic',
   soundEnabled: true,
   soundVolume: 0.6,
@@ -107,22 +107,47 @@ const DEFAULT_STATS: UserStats = {
   eloHistory: SEED_ELO_HISTORY,
 };
 
+const memoryStore = new Map<string, string>();
+
+function safeGetItem(key: string): string | null {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem(key);
+    }
+  } catch {
+    // Fallback to memoryStore
+  }
+  return memoryStore.get(key) ?? null;
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, value);
+      return;
+    }
+  } catch {
+    // Fallback to memoryStore
+  }
+  memoryStore.set(key, value);
+}
+
 export class StorageService {
   public static getSettings(): AppSettings {
     try {
-      const data = localStorage.getItem(SETTINGS_KEY);
+      const data = safeGetItem(SETTINGS_KEY);
       if (data) {
         return { ...DEFAULT_SETTINGS, ...JSON.parse(data) };
       }
     } catch {
       // Ignore
     }
-    return DEFAULT_SETTINGS;
+    return { ...DEFAULT_SETTINGS };
   }
 
   public static saveSettings(settings: AppSettings): void {
     try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      safeSetItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch {
       // Ignore
     }
@@ -130,20 +155,22 @@ export class StorageService {
 
   public static getStats(): UserStats {
     try {
-      const data = localStorage.getItem(STATS_KEY);
+      const data = safeGetItem(STATS_KEY);
       if (data) {
         const parsed = JSON.parse(data);
         const stats: UserStats = {
           ...DEFAULT_STATS,
           ...parsed,
+          lessonsCompleted: Array.isArray(parsed.lessonsCompleted)
+            ? [...parsed.lessonsCompleted]
+            : [...DEFAULT_STATS.lessonsCompleted],
           eloHistory:
             Array.isArray(parsed.eloHistory) && parsed.eloHistory.length > 0
               ? parsed.eloHistory
-              : SEED_ELO_HISTORY,
-          recentGames:
-            Array.isArray(parsed.recentGames) && parsed.recentGames.length > 0
-              ? parsed.recentGames
-              : SEED_GAMES,
+              : [...SEED_ELO_HISTORY],
+          recentGames: Array.isArray(parsed.recentGames)
+            ? parsed.recentGames
+            : [...SEED_GAMES],
         };
         const today = new Date().toISOString().split('T')[0];
         if (stats.lastActiveDate !== today) {
@@ -161,13 +188,19 @@ export class StorageService {
     } catch {
       // Ignore
     }
-    this.saveStats(DEFAULT_STATS);
-    return DEFAULT_STATS;
+    const initial: UserStats = {
+      ...DEFAULT_STATS,
+      lessonsCompleted: [...DEFAULT_STATS.lessonsCompleted],
+      recentGames: [...SEED_GAMES],
+      eloHistory: [...SEED_ELO_HISTORY],
+    };
+    this.saveStats(initial);
+    return initial;
   }
 
   public static saveStats(stats: UserStats): void {
     try {
-      localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+      safeSetItem(STATS_KEY, JSON.stringify(stats));
     } catch {
       // Ignore
     }
@@ -277,7 +310,25 @@ export class StorageService {
   }
 
   public static resetToFresh(): UserStats {
-    localStorage.removeItem(STATS_KEY);
-    return this.getStats();
+    const fresh: UserStats = {
+      estimatedElo: 800,
+      rapidElo: 800,
+      blitzElo: 800,
+      puzzleElo: 850,
+      gamesPlayed: 0,
+      wins: 0,
+      losses: 0,
+      draws: 0,
+      puzzlesSolved: 0,
+      puzzlesAttempted: 0,
+      lessonsCompleted: [],
+      dailyStreak: 1,
+      lastActiveDate: new Date().toISOString().split('T')[0],
+      practiceTimeMinutes: 0,
+      recentGames: [],
+      eloHistory: [{ label: 'Start', rapid: 800, puzzle: 850, estimated: 800 }],
+    };
+    this.saveStats(fresh);
+    return fresh;
   }
 }

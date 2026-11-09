@@ -1,6 +1,6 @@
 import { Square, PieceSymbol, Color } from 'chess.js';
 
-export type BoardTheme = 'emerald' | 'wood' | 'midnight' | 'cyber';
+export type BoardTheme = 'grandmaster' | 'emerald' | 'wood' | 'midnight' | 'cyber';
 export type PieceTheme = 'classic' | 'modern';
 
 export type EngineDifficulty = 'beginner' | 'easy' | 'intermediate' | 'advanced' | 'expert' | 'master';

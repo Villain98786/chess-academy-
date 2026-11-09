@@ -328,7 +328,7 @@ export class ChessEngine {
     }
 
     search.telemetry = t;
-    this.emitTelemetry(t);
+    this.lastTelemetry = t;
   }
 
   private parseUciBestMoveLine(line: string): void {

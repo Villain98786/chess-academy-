@@ -3,16 +3,13 @@ import { NavPage, Sidebar } from './components/Navigation/Sidebar';
 import { TopNavbar } from './components/Navigation/TopNavbar';
 import { DashboardPage } from './pages/DashboardPage';
 import { LearnPage } from './pages/LearnPage';
-import { PracticePage } from './pages/PracticePage';
 import { PlayComputerPage } from './pages/PlayComputerPage';
 import { PuzzlesPage } from './pages/PuzzlesPage';
-import { OpeningsPage } from './pages/OpeningsPage';
-import { AnalysisPage } from './pages/AnalysisPage';
 import { ProfilePage } from './pages/ProfilePage';
-import { SettingsPage } from './pages/SettingsPage';
-import { AppSettings, UserStats, GameRecord } from './types/chess';
+import { AppSettings, UserStats, GameRecord, CourseLevelId } from './types/chess';
 import { StorageService } from './services/storage';
 import { soundManager } from './services/sound';
+import { Home, Bot, GraduationCap, Puzzle, User } from 'lucide-react';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<NavPage>('dashboard');
@@ -51,16 +48,43 @@ export default function App() {
     setStats(fresh);
   };
 
+  // Phase 3: Route all navigation cleanly into the 5 primary screens while preserving sub-features
   const handleNavigate = (page: NavPage, context?: unknown) => {
-    setCurrentPage(page);
-    setPageContext(context || null);
+    if (page === 'openings') {
+      setCurrentPage('learn');
+      setPageContext({ subTab: 'openings' });
+    } else if (page === 'practice') {
+      setCurrentPage('learn');
+      setPageContext({ subTab: 'practice' });
+    } else if (page === 'analysis') {
+      setCurrentPage('profile');
+      setPageContext({
+        subTab: 'analysis',
+        game: context as GameRecord | undefined,
+      });
+    } else if (page === 'settings') {
+      setCurrentPage('profile');
+      setPageContext({ subTab: 'settings' });
+    } else {
+      setCurrentPage(page);
+      setPageContext(context || null);
+    }
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Phase 3: Only 5 primary navigation destinations on Mobile Bottom Bar
+  const mobileBottomNavItems: { id: NavPage; label: string; icon: React.ReactNode }[] = [
+    { id: 'dashboard', label: 'Home', icon: <Home className="w-5 h-5" /> },
+    { id: 'play', label: 'Play', icon: <Bot className="w-5 h-5" /> },
+    { id: 'learn', label: 'Learn', icon: <GraduationCap className="w-5 h-5" /> },
+    { id: 'puzzles', label: 'Puzzles', icon: <Puzzle className="w-5 h-5" /> },
+    { id: 'profile', label: 'Profile', icon: <User className="w-5 h-5" /> },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#0d1117] text-neutral-100 flex font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
-      {/* Desktop Sidebar */}
+    <div className="min-h-screen bg-[#070a12] text-slate-100 flex font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-200 overflow-x-hidden">
+      {/* Desktop & Tablet Sidebar */}
       <div className="hidden md:flex shrink-0">
         <Sidebar
           currentPage={currentPage}
@@ -71,14 +95,14 @@ export default function App() {
         />
       </div>
 
-      {/* Mobile Sidebar Overlay */}
+      {/* Mobile Slide-Over Sidebar Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
           <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-xs"
+            className="fixed inset-0 bg-black/75 backdrop-blur-xs"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-neutral-950 z-10 shadow-2xl">
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-[#0a0e18] z-10 shadow-2xl">
             <Sidebar
               currentPage={currentPage}
               onNavigate={handleNavigate}
@@ -91,7 +115,7 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         <TopNavbar
           currentPage={currentPage}
           onNavigate={handleNavigate}
@@ -101,7 +125,7 @@ export default function App() {
           onToggleMobileMenu={() => setMobileMenuOpen(true)}
         />
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-20 md:pb-0 bg-studio-grid">
           {currentPage === 'dashboard' && (
             <DashboardPage stats={stats} settings={settings} onNavigate={handleNavigate} />
           )}
@@ -111,12 +135,15 @@ export default function App() {
               settings={settings}
               stats={stats}
               onUpdateStats={handleUpdateStats}
-              initialContext={pageContext as { courseId?: 'beginner' | 'intermediate' | 'advanced' | 'master'; lessonId?: string } | null}
+              onNavigate={handleNavigate}
+              initialContext={
+                pageContext as {
+                  subTab?: 'lessons' | 'openings' | 'practice';
+                  courseId?: CourseLevelId;
+                  lessonId?: string;
+                } | null
+              }
             />
-          )}
-
-          {currentPage === 'practice' && (
-            <PracticePage settings={settings} />
           )}
 
           {currentPage === 'play' && (
@@ -125,6 +152,9 @@ export default function App() {
               stats={stats}
               onUpdateStats={handleUpdateStats}
               onNavigate={handleNavigate}
+              initialDifficulty={
+                (pageContext as { difficulty?: string } | null)?.difficulty as any
+              }
             />
           )}
 
@@ -133,34 +163,55 @@ export default function App() {
               settings={settings}
               stats={stats}
               onUpdateStats={handleUpdateStats}
-            />
-          )}
-
-          {currentPage === 'openings' && (
-            <OpeningsPage settings={settings} />
-          )}
-
-          {currentPage === 'analysis' && (
-            <AnalysisPage
-              settings={settings}
-              stats={stats}
-              initialGame={pageContext as GameRecord | undefined}
-              onNavigate={handleNavigate}
+              initialContext={
+                pageContext as { category?: string; puzzleId?: string } | null
+              }
             />
           )}
 
           {currentPage === 'profile' && (
-            <ProfilePage stats={stats} onNavigate={handleNavigate} />
-          )}
-
-          {currentPage === 'settings' && (
-            <SettingsPage
+            <ProfilePage
+              stats={stats}
               settings={settings}
               onUpdateSettings={handleUpdateSettings}
               onResetStats={handleResetStats}
+              onNavigate={handleNavigate}
+              initialContext={
+                pageContext as {
+                  subTab?: 'overview' | 'analysis' | 'settings';
+                  game?: GameRecord;
+                } | null
+              }
             />
           )}
         </main>
+
+        {/* Mobile Bottom Navigation Bar (< 768px) — 5 Primary Destinations */}
+        <nav
+          aria-label="Mobile Navigation"
+          className="md:hidden fixed bottom-0 inset-x-0 h-16 bg-[#0a0e18]/95 backdrop-blur-xl border-t border-white/10 z-40 grid grid-cols-5 items-center px-1 select-none"
+        >
+          {mobileBottomNavItems.map((item) => {
+            const isActive = currentPage === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleNavigate(item.id)}
+                className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-colors ${
+                  isActive
+                    ? 'text-emerald-400 font-bold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {item.icon}
+                <span className="text-[11px] mt-0.5 tracking-tight truncate max-w-full">
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );

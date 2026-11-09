@@ -64,6 +64,7 @@ interface PlayComputerPageProps {
   stats: UserStats;
   onUpdateStats: (stats: UserStats) => void;
   onNavigate: (page: NavPage, context?: unknown) => void;
+  initialDifficulty?: EngineDifficulty;
 }
 
 export const TIME_CONTROL_PRESETS: TimeControlConfig[] = [
@@ -83,9 +84,12 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
   stats,
   onUpdateStats,
   onNavigate,
+  initialDifficulty,
 }) => {
   // Game Setup & Engine Configuration State
-  const [difficulty, setDifficulty] = useState<EngineDifficulty>('intermediate');
+  const [difficulty, setDifficulty] = useState<EngineDifficulty>(
+    initialDifficulty && DIFFICULTY_LEVELS[initialDifficulty] ? initialDifficulty : 'intermediate'
+  );
   const [speedMode, setSpeedMode] = useState<EngineSpeedMode>('balanced');
   const [playerColor, setPlayerColor] = useState<Color>('w');
   const [boardOrientation, setBoardOrientation] = useState<Color>('w');
@@ -757,6 +761,19 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
     }
   };
 
+  // Snap back to live game position if user was inspecting move history
+  const handleResumeLiveGame = useCallback(() => {
+    if (moves.length === 0) return;
+    const latestIdx = moves.length - 1;
+    const latestMove = moves[latestIdx];
+    const liveBoard = new Chess(chessRef.current.fen());
+    setDisplayChess(liveBoard);
+    setCurrentMoveIndex(latestIdx);
+    if (latestMove) {
+      setLastMove({ from: latestMove.from, to: latestMove.to });
+    }
+  }, [moves]);
+
   // Resign
   const handleResign = () => {
     if (!isPlaying || gameResult) return;
@@ -959,7 +976,6 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
   }, [moves, currentMoveIndex]);
 
   const isViewingLatest = currentMoveIndex === moves.length - 1;
-  const lastUserMoveObj = [...moves].reverse().find((m) => m.color === playerColor);
 
   const turnStateBadge = useMemo(() => {
     switch (turnState) {
@@ -987,47 +1003,46 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
   }, [turnState]);
 
   return (
-    <div className="p-4 sm:p-5 space-y-4 max-w-7xl mx-auto">
-      {/* Top Match Control & Configuration Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-neutral-900 border border-neutral-800 p-3.5 rounded-2xl shadow-md">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">{activeDifficulty.avatar}</span>
+    <div className="p-4 sm:p-6 space-y-4 max-w-[1520px] mx-auto">
+      {/* Clean Top Match Setup Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-[#111624] border border-white/[0.08] p-2.5 sm:p-4 rounded-2xl">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#171c2b] border border-white/10 flex items-center justify-center text-base sm:text-xl shrink-0">
+            {activeDifficulty.avatar}
+          </div>
           <div>
-            <div className="text-xs font-bold text-white flex flex-wrap items-center gap-2">
+            <div className="text-xs sm:text-sm font-bold text-slate-100 flex flex-wrap items-center gap-1.5 sm:gap-2">
               <span>{activeDifficulty.name}</span>
-              <span
-                title="Approximate Elo strength calibrated via UCI Skill Level"
-                className="text-[10px] bg-emerald-950 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-800/40 font-mono"
-              >
-                ~{activeDifficulty.elo} Elo (Approx)
+              <span className="text-[11px] text-emerald-400 font-mono">
+                {activeDifficulty.elo} ELO
               </span>
               <span
                 data-testid="turn-state-badge"
-                className={`text-[10px] px-2 py-0.5 rounded border font-bold uppercase ${turnStateBadge.cls}`}
+                className={`text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase tracking-wider ${turnStateBadge.cls}`}
               >
                 {turnStateBadge.label}
               </span>
             </div>
-            <p className="text-[11px] text-neutral-400 hidden sm:block mt-0.5">
-              {activeDifficulty.description} • Opening:{' '}
-              <span className="text-neutral-200 font-semibold">
+            <p className="text-[11px] text-slate-400 hidden sm:block mt-0.5">
+              Opening:{' '}
+              <span className="text-slate-200 font-medium">
                 {currentOpening.eco} {currentOpening.name}
               </span>
             </p>
           </div>
         </div>
 
-        {/* Color, Time Control, Difficulty, Speed, & New Game */}
+        {/* Color, Time Control, Difficulty, Options & New Game */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Play as White / Black / Random */}
-          <div className="flex items-center bg-neutral-950 p-1 rounded-xl border border-neutral-800">
+          <div className="flex items-center bg-[#0a0e18] p-1 rounded-xl border border-white/10">
             <button
               type="button"
               onClick={() => handleStartNewGame('w', difficulty, timeControl)}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
                 playerColor === 'w'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-neutral-400 hover:text-white'
+                  ? 'bg-emerald-500 text-[#070a12]'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               ♔ White
@@ -1037,8 +1052,8 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
               onClick={() => handleStartNewGame('b', difficulty, timeControl)}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
                 playerColor === 'b'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-neutral-400 hover:text-white'
+                  ? 'bg-emerald-500 text-[#070a12]'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               ♚ Black
@@ -1047,12 +1062,29 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
               type="button"
               onClick={() => handleStartNewGame('random', difficulty, timeControl)}
               title="Play Random Color"
-              className="px-2 py-1 rounded-lg text-xs font-bold text-neutral-400 hover:text-white transition-all flex items-center gap-1"
+              className="px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition-all flex items-center gap-1"
             >
               <Shuffle className="w-3 h-3" />
               <span className="hidden md:inline">Random</span>
             </button>
           </div>
+
+          {/* Engine Difficulty Selector — starts fresh match at selected difficulty */}
+          <select
+            aria-label="Engine Difficulty"
+            value={difficulty}
+            onChange={(e) => {
+              const newDiff = e.target.value as EngineDifficulty;
+              handleStartNewGame(playerColor, newDiff, timeControl);
+            }}
+            className="text-xs bg-[#0a0e18] text-slate-200 border border-white/10 rounded-xl px-2.5 py-1.5 focus:border-emerald-500 focus:outline-hidden"
+          >
+            {(Object.keys(DIFFICULTY_LEVELS) as EngineDifficulty[]).map((key) => (
+              <option key={key} value={key}>
+                {DIFFICULTY_LEVELS[key].name} ({DIFFICULTY_LEVELS[key].elo} Elo)
+              </option>
+            ))}
+          </select>
 
           {/* Time Control Selector */}
           <select
@@ -1069,7 +1101,7 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
                 TIME_CONTROL_PRESETS[6];
               handleStartNewGame(playerColor, difficulty, preset);
             }}
-            className="text-xs bg-neutral-950 text-neutral-200 border border-neutral-700/80 rounded-xl px-2.5 py-1.5 focus:border-emerald-500 focus:outline-hidden"
+            className="text-xs bg-[#0a0e18] text-slate-200 border border-white/10 rounded-xl px-2.5 py-1.5 focus:border-emerald-500 focus:outline-hidden font-mono"
           >
             {TIME_CONTROL_PRESETS.map((tc) => (
               <option key={tc.id} value={tc.id}>
@@ -1078,48 +1110,14 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
             ))}
           </select>
 
-          {/* Engine Difficulty Selector */}
-          <select
-            aria-label="Engine Difficulty"
-            value={difficulty}
-            onChange={(e) => {
-              const newDiff = e.target.value as EngineDifficulty;
-              setDifficulty(newDiff);
-            }}
-            className="text-xs bg-neutral-950 text-neutral-200 border border-neutral-700/80 rounded-xl px-2.5 py-1.5 focus:border-emerald-500 focus:outline-hidden"
-          >
-            {(Object.keys(DIFFICULTY_LEVELS) as EngineDifficulty[]).map((key) => (
-              <option key={key} value={key}>
-                {DIFFICULTY_LEVELS[key].name} (~{DIFFICULTY_LEVELS[key].elo} Elo)
-              </option>
-            ))}
-          </select>
-
-          {/* Engine Thinking Speed Selector (Independent of Difficulty) */}
-          <select
-            aria-label="Engine Thinking Speed"
-            value={speedMode}
-            onChange={(e) => {
-              const mode = e.target.value as EngineSpeedMode;
-              setSpeedMode(mode);
-              chessEngine.setSpeedMode(mode);
-            }}
-            className="text-xs bg-neutral-950 text-neutral-200 border border-neutral-700/80 rounded-xl px-2.5 py-1.5 focus:border-emerald-500 focus:outline-hidden"
-            title="Configure engine response speed independently from difficulty"
-          >
-            <option value="fast">⚡ Speed: Fast</option>
-            <option value="balanced">⚖️ Speed: Balanced</option>
-            <option value="deep">🧠 Speed: Deep</option>
-          </select>
-
-          {/* Assistance Settings Toggle Button */}
+          {/* Options & Assistance Toggle */}
           <button
             type="button"
             onClick={() => setShowAssistancePanel(!showAssistancePanel)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
               showAssistancePanel
-                ? 'bg-emerald-950 border-emerald-500/50 text-emerald-300'
-                : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:text-white'
+                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                : 'bg-[#0a0e18] border-white/10 text-slate-300 hover:text-white'
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
@@ -1129,7 +1127,7 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
           <button
             type="button"
             onClick={() => handleStartNewGame(playerColor, difficulty, timeControl)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow transition-all hover:scale-105"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#070a12] text-xs font-extrabold transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>New Game</span>
@@ -1137,21 +1135,114 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
         </div>
       </div>
 
-      {/* Collapsible Computer Assistance & Engine Visualization Toggles (Phase 6B) */}
+      {/* Collapsible Computer Assistance, Engine Speed, & PGN/FEN Drawer */}
       {showAssistancePanel && (
         <div
           data-testid="assistance-panel"
-          className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-lg space-y-3 animate-in fade-in"
+          className="bg-[#111624] border border-white/10 rounded-2xl p-4 space-y-4 animate-in fade-in"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5" />
-              <span>Chess.com-Style Computer Assistance & Visualization Controls</span>
+              <span>Coaching Assistance & Board Options</span>
             </span>
-            <span className="text-[11px] text-neutral-400">
-              All assistance features are independently configurable
-            </span>
+
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <select
+                aria-label="Engine Thinking Speed"
+                value={speedMode}
+                onChange={(e) => {
+                  const mode = e.target.value as EngineSpeedMode;
+                  setSpeedMode(mode);
+                  chessEngine.setSpeedMode(mode);
+                }}
+                className="text-xs bg-[#0a0e18] text-slate-200 border border-white/10 rounded-lg px-2.5 py-1"
+              >
+                <option value="fast">⚡ Speed: Fast</option>
+                <option value="balanced">⚖️ Speed: Balanced</option>
+                <option value="deep">🧠 Speed: Deep</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={handleSwitchSides}
+                disabled={!isPlaying}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0a0e18] hover:bg-[#171c2b] text-slate-200 border border-white/10 disabled:opacity-40"
+              >
+                <Repeat className="w-3 h-3 text-cyan-400" />
+                <span>Switch Sides</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSaveGame}
+                disabled={moves.length === 0}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0a0e18] hover:bg-[#171c2b] text-slate-200 border border-white/10 disabled:opacity-40"
+              >
+                {copiedType === 'saved' ? (
+                  <Check className="w-3 h-3 text-emerald-400" />
+                ) : (
+                  <Save className="w-3 h-3 text-emerald-400" />
+                )}
+                <span>{copiedType === 'saved' ? 'Saved!' : 'Save Game'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyPgn}
+                disabled={moves.length === 0}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0a0e18] hover:bg-[#171c2b] text-slate-200 border border-white/10 disabled:opacity-40"
+              >
+                {copiedType === 'pgn' ? (
+                  <Check className="w-3 h-3 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3 h-3 text-cyan-400" />
+                )}
+                <span>{copiedType === 'pgn' ? 'PGN Copied' : 'Copy PGN'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportFen}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0a0e18] hover:bg-[#171c2b] text-slate-200 border border-white/10"
+              >
+                {copiedType === 'fen' ? (
+                  <Check className="w-3 h-3 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3 h-3 text-amber-400" />
+                )}
+                <span>{copiedType === 'fen' ? 'FEN Copied' : 'Copy FEN'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowFenImport(!showFenImport)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0a0e18] hover:bg-[#171c2b] text-slate-200 border border-white/10"
+              >
+                <Upload className="w-3 h-3 text-emerald-400" />
+                <span>Load FEN</span>
+              </button>
+            </div>
           </div>
+
+          {showFenImport && (
+            <form onSubmit={handleImportFenSubmit} className="flex gap-2">
+              <input
+                type="text"
+                value={fenImportInput}
+                onChange={(e) => setFenImportInput(e.target.value)}
+                placeholder="Paste FEN position string..."
+                className="flex-1 bg-[#0a0e18] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
+              />
+              <button
+                type="submit"
+                className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-[#070a12] text-xs font-bold"
+              >
+                Load Position
+              </button>
+            </form>
+          )}
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
             {(
               [
@@ -1167,9 +1258,9 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
             ).map((item) => (
               <label
                 key={item.key}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-neutral-950 border border-neutral-800 cursor-pointer hover:border-neutral-700"
+                className="flex items-center justify-between p-2.5 rounded-xl bg-[#0a0e18] border border-white/10 cursor-pointer hover:border-emerald-500/40"
               >
-                <span className="font-semibold text-neutral-200">{item.label}</span>
+                <span className="font-semibold text-slate-200">{item.label}</span>
                 <input
                   type="checkbox"
                   checked={assistance[item.key]}
@@ -1189,12 +1280,12 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
 
       {/* Custom Time Control Modal */}
       {showCustomTimeModal && (
-        <div className="bg-neutral-900 border border-emerald-500/40 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-[#111624] border border-emerald-500/40 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-xs font-bold text-white">
-            Custom Time Control (Minutes + Increment Seconds)
+            Custom Time Control (Minutes + Fischer Increment Seconds)
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <label className="flex items-center gap-1.5 text-neutral-300">
+            <label className="flex items-center gap-1.5 text-slate-300">
               <span>Minutes:</span>
               <input
                 type="number"
@@ -1202,10 +1293,10 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
                 max={120}
                 value={customMinutes}
                 onChange={(e) => setCustomMinutes(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                className="w-16 px-2 py-1 rounded bg-neutral-950 border border-neutral-700 text-white"
+                className="w-16 px-2 py-1 rounded bg-[#0a0e18] border border-white/10 text-white font-mono"
               />
             </label>
-            <label className="flex items-center gap-1.5 text-neutral-300">
+            <label className="flex items-center gap-1.5 text-slate-300">
               <span>Increment (sec):</span>
               <input
                 type="number"
@@ -1215,7 +1306,7 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
                 onChange={(e) =>
                   setCustomIncrement(Math.max(0, parseInt(e.target.value, 10) || 0))
                 }
-                className="w-16 px-2 py-1 rounded bg-neutral-950 border border-neutral-700 text-white"
+                className="w-16 px-2 py-1 rounded bg-[#0a0e18] border border-white/10 text-white font-mono"
               />
             </label>
             <button
@@ -1231,14 +1322,14 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
                 setShowCustomTimeModal(false);
                 handleStartNewGame(playerColor, difficulty, customTc);
               }}
-              className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+              className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-[#070a12] font-bold"
             >
               Start Custom Match
             </button>
             <button
               type="button"
               onClick={() => setShowCustomTimeModal(false)}
-              className="px-2.5 py-1 rounded-lg bg-neutral-800 text-neutral-400 hover:text-white"
+              className="px-2.5 py-1.5 rounded-lg bg-[#171c2b] text-slate-400 hover:text-white"
             >
               Cancel
             </button>
@@ -1248,39 +1339,43 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
 
       {/* Optional Toast Notice */}
       {statusNotice && (
-        <div className="px-4 py-2 rounded-xl bg-amber-950/60 border border-amber-500/40 text-amber-200 text-xs font-semibold text-center animate-in fade-in">
+        <div className="px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs font-semibold text-center animate-in fade-in">
           {statusNotice}
         </div>
       )}
 
-      {/* Main Board Arena Grid */}
+      {/* Main 12-Column Gameplay Layout — Chessboard Primary Focus */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Board Playfield */}
-        <div className="lg:col-span-7 flex flex-col items-center bg-neutral-900 border border-neutral-800 rounded-2xl p-4 sm:p-5 shadow-xl space-y-3">
-          {/* Opponent (Computer) Bar */}
-          <div className="w-full max-w-[540px] flex items-center justify-between text-xs px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-xl">
-            <div className="flex items-center gap-2.5">
-              <span className="text-xl">{activeDifficulty.avatar}</span>
-              <div>
-                <span className="font-bold text-white block leading-none">
-                  {activeDifficulty.name}
-                </span>
-                <span className="text-[10px] text-neutral-400">
-                  Stockfish UCI Worker (~{activeDifficulty.elo} Elo)
-                </span>
+        {/* Left/Center (Cols 1-7): Opponent Bar, Chessboard + EvalBar, Player Bar, Core Controls */}
+        <div className="lg:col-span-7 flex flex-col items-center bg-[#111624] border border-white/[0.08] rounded-2xl p-3.5 sm:p-5 space-y-3">
+          {/* Opponent Bar + Clock */}
+          <div className="w-full max-w-[580px] flex items-center justify-between text-xs px-3.5 py-2.5 bg-[#171c2b] border border-white/[0.07] rounded-xl">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-lg bg-[#0a0e18] border border-white/10 flex items-center justify-center text-lg shrink-0">
+                {activeDifficulty.avatar}
               </div>
-              <CapturedPieces
-                captured={playerColor === 'w' ? capturedPieces.black : capturedPieces.white}
-                playerColor={playerColor === 'w' ? 'b' : 'w'}
-              />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-100 truncate">
+                    {activeDifficulty.name}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-[#283147] text-amber-400 font-mono text-[10px] font-bold">
+                    {activeDifficulty.elo}
+                  </span>
+                </div>
+                <CapturedPieces
+                  captured={playerColor === 'w' ? capturedPieces.black : capturedPieces.white}
+                  playerColor={playerColor === 'w' ? 'b' : 'w'}
+                />
+              </div>
             </div>
 
-            {/* Clock & Thinking status */}
-            <div className="flex items-center gap-2">
+            {/* Opponent Clock & Thinking Indicator */}
+            <div className="flex items-center gap-2.5 shrink-0">
               {isEngineThinking && assistance.thinkingIndicator && (
                 <div
                   data-testid="engine-thinking-indicator"
-                  className="flex items-center gap-1 text-[11px] text-emerald-400 font-mono animate-pulse"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[11px] text-emerald-300 font-mono animate-pulse"
                 >
                   <RefreshCw className="w-3 h-3 animate-spin" />
                   <span>Thinking...</span>
@@ -1288,10 +1383,8 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
               )}
               {timeControl.minutes > 0 && (
                 <div
-                  className={`flex items-center gap-1.5 font-mono text-sm px-3 py-1 rounded-lg font-bold ${
-                    chess.turn() !== playerColor
-                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40 shadow'
-                      : 'bg-neutral-900 text-neutral-400'
+                  className={`chess-clock flex items-center gap-1.5 text-sm sm:text-base font-bold ${
+                    chess.turn() !== playerColor ? 'active text-emerald-400' : 'text-slate-400'
                   }`}
                 >
                   <Clock className="w-3.5 h-3.5" />
@@ -1303,16 +1396,35 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
             </div>
           </div>
 
-          {/* Board with Evaluation Bar */}
-          <div className="flex gap-2.5 sm:gap-3 items-stretch justify-center w-full">
+          {/* Historical Move Inspection Banner (Prevents Board Lockout Confusion) */}
+          {!isViewingLatest && moves.length > 0 && (
+            <div
+              data-testid="history-review-banner"
+              className="w-full max-w-[580px] flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs"
+            >
+              <span>
+                Viewing historical position ({currentMoveIndex + 1} of {moves.length})
+              </span>
+              <button
+                type="button"
+                onClick={handleResumeLiveGame}
+                className="px-3 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#070a12] font-bold text-xs transition-colors"
+              >
+                Return to Live Game
+              </button>
+            </div>
+          )}
+
+          {/* Central Chessboard + Eval Bar */}
+          <div className="flex gap-2.5 sm:gap-3.5 items-stretch justify-center w-full">
             {assistance.evalBar && (
               <EvalBar
                 score={evalScore}
                 orientation={boardOrientation}
-                className="h-auto min-h-[320px] max-h-[540px]"
+                className="h-auto min-h-[280px] max-h-[560px]"
               />
             )}
-            <div className="flex-1 max-w-[540px] aspect-square flex items-center justify-center">
+            <div className="flex-1 max-w-[560px] aspect-square flex items-center justify-center">
               <Chessboard
                 chess={displayChess}
                 orientation={boardOrientation}
@@ -1325,6 +1437,11 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
                   isViewingLatest &&
                   chess.turn() === playerColor
                 }
+                onDisabledInteract={() => {
+                  if (!isViewingLatest) {
+                    handleResumeLiveGame();
+                  }
+                }}
                 lastMove={lastMove}
                 hintMove={hintMove}
                 bestMove={
@@ -1350,38 +1467,33 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
             </div>
           </div>
 
-          {/* Player Bar with Live Accuracy Meter */}
-          <div className="w-full max-w-[540px] flex items-center justify-between text-xs px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-xl">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-emerald-600/30 border border-emerald-500/40 flex items-center justify-center font-bold text-emerald-400 text-xs">
+          {/* Player Bar + Clock */}
+          <div className="w-full max-w-[580px] flex items-center justify-between text-xs px-3.5 py-2.5 bg-[#171c2b] border border-white/[0.07] rounded-xl">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-extrabold text-emerald-300 text-xs shrink-0">
                 YOU
               </div>
-              <div>
-                <span className="font-bold text-white block leading-none">
-                  You ({playerColor === 'w' ? 'White' : 'Black'})
-                </span>
-                <span className="text-[10px] text-neutral-400">
-                  Rapid Elo: {stats.rapidElo}
-                </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-100 truncate">
+                    You ({playerColor === 'w' ? 'White' : 'Black'})
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    Accuracy: <strong className="text-emerald-400">{liveUserAccuracy}%</strong>
+                  </span>
+                </div>
+                <CapturedPieces
+                  captured={playerColor === 'w' ? capturedPieces.white : capturedPieces.black}
+                  playerColor={playerColor === 'w' ? 'w' : 'b'}
+                />
               </div>
-              <CapturedPieces
-                captured={playerColor === 'w' ? capturedPieces.white : capturedPieces.black}
-                playerColor={playerColor === 'w' ? 'w' : 'b'}
-              />
             </div>
 
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-neutral-900 border border-neutral-800 text-[11px] font-mono text-emerald-400">
-                <Activity className="w-3 h-3" />
-                <span>Acc: {liveUserAccuracy}%</span>
-              </div>
-
+            <div className="flex items-center gap-2 shrink-0">
               {timeControl.minutes > 0 && (
                 <div
-                  className={`flex items-center gap-1.5 font-mono text-sm px-3 py-1 rounded-lg font-bold ${
-                    chess.turn() === playerColor
-                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40 shadow'
-                      : 'bg-neutral-900 text-neutral-400'
+                  className={`chess-clock flex items-center gap-1.5 text-sm sm:text-base font-bold ${
+                    chess.turn() === playerColor ? 'active text-emerald-400' : 'text-slate-400'
                   }`}
                 >
                   <Clock className="w-3.5 h-3.5" />
@@ -1393,14 +1505,14 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
             </div>
           </div>
 
-          {/* Primary In-Game Action Bar (Phase 6C) */}
-          <div className="w-full max-w-[540px] flex flex-wrap items-center justify-center gap-2 pt-2 border-t border-neutral-800">
+          {/* Essential In-Game Action Controls */}
+          <div className="w-full max-w-[580px] flex flex-wrap items-center justify-center gap-2 pt-1">
             {assistance.hintsEnabled && (
               <button
                 type="button"
                 onClick={handleGetHint}
                 disabled={!isPlaying || chess.turn() !== playerColor}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 text-xs font-semibold border border-emerald-700/50 disabled:opacity-40 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs font-bold border border-emerald-500/30 disabled:opacity-40 transition-colors"
               >
                 <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
                 <span>Hint</span>
@@ -1411,7 +1523,7 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
                 type="button"
                 onClick={handleUndo}
                 disabled={!isPlaying || moves.length === 0}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-semibold border border-neutral-700 disabled:opacity-40 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#171c2b] hover:bg-[#1f2638] text-slate-200 text-xs font-semibold border border-white/10 disabled:opacity-40 transition-colors"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Undo</span>
@@ -1420,7 +1532,7 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
             <button
               type="button"
               onClick={handleFlipBoard}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-semibold border border-neutral-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#171c2b] hover:bg-[#1f2638] text-slate-200 text-xs font-semibold border border-white/10 transition-colors"
               title="Flip Board Orientation"
             >
               <ArrowUpDown className="w-3.5 h-3.5 text-emerald-400" />
@@ -1428,18 +1540,8 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
             </button>
             <button
               type="button"
-              onClick={handleSwitchSides}
-              disabled={!isPlaying}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-semibold border border-neutral-700 disabled:opacity-40 transition-colors"
-              title="Switch Sides with Computer"
-            >
-              <Repeat className="w-3.5 h-3.5 text-sky-400" />
-              <span>Switch Sides</span>
-            </button>
-            <button
-              type="button"
               onClick={() => handleStartNewGame(playerColor, difficulty, timeControl)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-semibold border border-neutral-700 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#171c2b] hover:bg-[#1f2638] text-slate-200 text-xs font-semibold border border-white/10 transition-colors"
               title="Restart Current Match"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -1449,7 +1551,7 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
               type="button"
               onClick={handleOfferDraw}
               disabled={!isPlaying}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-semibold border border-neutral-700 disabled:opacity-40 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#171c2b] hover:bg-[#1f2638] text-slate-200 text-xs font-semibold border border-white/10 disabled:opacity-40 transition-colors"
             >
               <Handshake className="w-3.5 h-3.5" />
               <span>Draw</span>
@@ -1458,142 +1560,70 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
               type="button"
               onClick={handleResign}
               disabled={!isPlaying}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-neutral-800 hover:bg-rose-950/60 hover:border-rose-700 hover:text-rose-300 text-neutral-300 text-xs font-semibold border border-neutral-700 disabled:opacity-40 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#171c2b] hover:bg-rose-500/20 hover:border-rose-500/40 hover:text-rose-300 text-slate-200 text-xs font-semibold border border-white/10 disabled:opacity-40 transition-colors"
             >
               <Flag className="w-3.5 h-3.5" />
               <span>Resign</span>
             </button>
           </div>
-
-          {/* Secondary Utility Controls: Save Game, Copy PGN, Export FEN, Import FEN */}
-          <div className="w-full max-w-[540px] flex flex-wrap items-center justify-center gap-2 pt-1 text-[11px]">
-            <button
-              type="button"
-              onClick={handleSaveGame}
-              disabled={moves.length === 0}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-neutral-950 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 disabled:opacity-40"
-            >
-              {copiedType === 'saved' ? (
-                <Check className="w-3 h-3 text-emerald-400" />
-              ) : (
-                <Save className="w-3 h-3 text-emerald-400" />
-              )}
-              <span>{copiedType === 'saved' ? 'Saved!' : 'Save Game'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleCopyPgn}
-              disabled={moves.length === 0}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-neutral-950 hover:bg-neutral-800 text-neutral-300 border border-neutral-800 disabled:opacity-40"
-            >
-              {copiedType === 'pgn' ? (
-                <Check className="w-3 h-3 text-emerald-400" />
-              ) : (
-                <Copy className="w-3 h-3 text-purple-400" />
-              )}
-              <span>{copiedType === 'pgn' ? 'PGN Copied' : 'Copy PGN'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleExportFen}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-neutral-950 hover:bg-neutral-800 text-neutral-300 border border-neutral-800"
-            >
-              {copiedType === 'fen' ? (
-                <Check className="w-3 h-3 text-emerald-400" />
-              ) : (
-                <Copy className="w-3 h-3 text-sky-400" />
-              )}
-              <span>{copiedType === 'fen' ? 'FEN Copied' : 'Export FEN'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowFenImport(!showFenImport)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-neutral-950 hover:bg-neutral-800 text-neutral-300 border border-neutral-800"
-            >
-              <Upload className="w-3 h-3 text-amber-400" />
-              <span>Import FEN</span>
-            </button>
-          </div>
-
-          {showFenImport && (
-            <form
-              onSubmit={handleImportFenSubmit}
-              className="w-full max-w-[540px] flex gap-2 pt-1"
-            >
-              <input
-                type="text"
-                value={fenImportInput}
-                onChange={(e) => setFenImportInput(e.target.value)}
-                placeholder="Paste FEN position string..."
-                className="flex-1 bg-neutral-950 border border-neutral-700 rounded-lg px-2.5 py-1 text-xs text-white"
-              />
-              <button
-                type="submit"
-                className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold"
-              >
-                Load FEN
-              </button>
-            </form>
-          )}
         </div>
 
-        {/* Right Sidebar: Engine Visualization, Live AI Coach & Move History */}
+        {/* Right Sidebar (Cols 8-12): Engine Telemetry, Live Grandmaster Coach & Move History */}
         <div className="lg:col-span-5 space-y-4">
-          {/* Phase 8: Optional Engine Visualization & Telemetry Panel */}
           {assistance.engineAnalysisPanel && (
             <div
               data-testid="engine-telemetry-panel"
-              className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 shadow-md space-y-3"
+              className="bg-[#111624] border border-white/[0.08] rounded-2xl p-4 shadow-xl space-y-3"
             >
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Cpu className="w-3.5 h-3.5" />
                   <span>Live UCI Worker Telemetry</span>
                 </span>
-                <span className="font-mono text-[11px] text-neutral-400 flex items-center gap-1">
-                  <Gauge className="w-3 h-3 text-sky-400" />
+                <span className="font-mono text-[11px] text-slate-400 flex items-center gap-1">
+                  <Gauge className="w-3 h-3 text-cyan-400" />
                   <span>{telemetry.nps.toLocaleString()} NPS</span>
                 </span>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="p-2 rounded-xl bg-neutral-950 border border-neutral-800">
-                  <div className="text-[10px] text-neutral-400">Evaluation</div>
-                  <div className="font-mono font-black text-white text-sm">
+                <div className="p-2.5 rounded-xl bg-[#0a0e18] border border-white/[0.06]">
+                  <div className="text-[10px] text-slate-400">Evaluation</div>
+                  <div className="font-mono font-black text-white text-sm mt-0.5">
                     {chessEngine.formatScore(evalScore)}
                   </div>
                 </div>
-                <div className="p-2 rounded-xl bg-neutral-950 border border-neutral-800">
-                  <div className="text-[10px] text-neutral-400">Search Depth</div>
-                  <div className="font-mono font-bold text-emerald-400 text-sm">
+                <div className="p-2.5 rounded-xl bg-[#0a0e18] border border-white/[0.06]">
+                  <div className="text-[10px] text-slate-400">Search Depth</div>
+                  <div className="font-mono font-bold text-emerald-400 text-sm mt-0.5">
                     d{telemetry.depth} / sd{telemetry.selDepth}
                   </div>
                 </div>
-                <div className="p-2 rounded-xl bg-neutral-950 border border-neutral-800">
-                  <div className="text-[10px] text-neutral-400">Move Time</div>
-                  <div className="font-mono font-bold text-sky-300 text-sm">
+                <div className="p-2.5 rounded-xl bg-[#0a0e18] border border-white/[0.06]">
+                  <div className="text-[10px] text-slate-400">Move Time</div>
+                  <div className="font-mono font-bold text-cyan-300 text-sm mt-0.5">
                     {telemetry.timeMs} ms
                   </div>
                 </div>
               </div>
 
               {telemetry.pv.length > 0 && (
-                <div className="text-[11px] bg-neutral-950 border border-neutral-800 rounded-lg px-2.5 py-1.5 font-mono text-neutral-300 truncate">
-                  <span className="text-neutral-500 mr-1.5">PV:</span>
+                <div className="text-[11px] bg-[#0a0e18] border border-white/[0.06] rounded-lg px-2.5 py-1.5 font-mono text-slate-300 truncate">
+                  <span className="text-slate-500 mr-1.5">PV:</span>
                   {telemetry.pv.join(' ')}
                 </div>
               )}
 
               {telemetry.candidates.length > 0 && (
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase text-neutral-400">
+                  <div className="text-[10px] font-bold uppercase text-slate-400">
                     Top Candidate Moves
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {telemetry.candidates.map((cand, idx) => (
                       <span
                         key={idx}
-                        className="px-2 py-0.5 rounded bg-neutral-950 border border-neutral-800 text-[11px] font-mono text-neutral-200"
+                        className="px-2 py-0.5 rounded bg-[#0a0e18] border border-white/[0.06] text-[11px] font-mono text-slate-200"
                       >
                         <strong className="text-emerald-400">{cand.san}</strong> (
                         {chessEngine.formatScore(cand.scoreCp)})
@@ -1605,7 +1635,7 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
             </div>
           )}
 
-          {/* Interactive Grandmaster Chess Coach (Replaces Chatbot UI) */}
+          {/* Interactive Grandmaster Chess Coach */}
           <GrandmasterCoach
             fen={displayChess.fen()}
             explanation={coachExplanation}
@@ -1634,6 +1664,8 @@ export const PlayComputerPage: React.FC<PlayComputerPageProps> = ({
             moves={moves}
             currentMoveIndex={currentMoveIndex}
             onSelectMove={handleSelectMove}
+            openingEco={currentOpening.eco}
+            openingName={currentOpening.name}
           />
         </div>
       </div>

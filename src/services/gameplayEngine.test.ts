@@ -214,3 +214,33 @@ test('15 & 16. Switching difficulty, thinking speed modes, and switching sides',
   assert.ok(pgn.includes('1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 1-0'));
   assert.equal(detectCriticalMoments([]).length, 0);
 });
+
+test('17. User progress, lesson completion, puzzle rating, and game record persistence', async () => {
+  const { StorageService } = await import('./storage');
+  const fresh = StorageService.resetToFresh();
+  assert.equal(fresh.gamesPlayed, 0);
+  assert.equal(fresh.lessonsCompleted.length, 0);
+
+  const afterLesson = StorageService.markLessonCompleted('beg-1');
+  assert.ok(afterLesson.lessonsCompleted.includes('beg-1'));
+
+  const afterPuzzle = StorageService.recordPuzzleResult(true, 1200);
+  assert.equal(afterPuzzle.puzzlesSolved, 1);
+  assert.ok(afterPuzzle.puzzleElo >= 850);
+
+  const afterGame = StorageService.recordGame({
+    id: 'test-game-1',
+    date: 'Just now',
+    playerColor: 'w',
+    opponent: 'Intermediate (Knight)',
+    opponentElo: 1000,
+    result: 'win',
+    reason: 'Checkmate',
+    moves: [],
+    userAccuracy: 94.5,
+  });
+  assert.equal(afterGame.gamesPlayed, 1);
+  assert.equal(afterGame.wins, 1);
+  assert.equal(afterGame.recentGames[0].id, 'test-game-1');
+});
+

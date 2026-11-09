@@ -33,6 +33,8 @@ export interface GrandmasterCoachProps {
   onHighlightSquares?: (arrow: { from: Square; to: Square } | null) => void;
   onOpenLesson?: (courseId: CourseLevelId, lessonId: string) => void;
   defaultExpanded?: boolean;
+  coachName?: string;
+  coachTitle?: string;
   className?: string;
 }
 
@@ -43,42 +45,42 @@ const STATE_META: Record<
   THINKING: {
     label: 'Analyzing Position',
     badgeClass: 'bg-sky-500/15 text-sky-300 border-sky-500/40',
-    bubbleBorderClass: 'border-sky-500/30 bg-neutral-950/90',
+    bubbleBorderClass: 'border-sky-500/40',
   },
   TEACHING: {
     label: 'Teaching Principle',
     badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
-    bubbleBorderClass: 'border-emerald-500/30 bg-neutral-950/90',
+    bubbleBorderClass: 'border-emerald-500/40',
   },
   PRAISING: {
     label: 'Strong Move!',
     badgeClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50',
-    bubbleBorderClass: 'border-cyan-500/40 bg-cyan-950/20',
+    bubbleBorderClass: 'border-cyan-400/50',
   },
   WARNING: {
     label: 'Tactical Alert',
     badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-400/50',
-    bubbleBorderClass: 'border-amber-500/40 bg-amber-950/20',
+    bubbleBorderClass: 'border-amber-400/50',
   },
   EXPLAINING: {
     label: 'Opponent Strategy',
     badgeClass: 'bg-indigo-500/20 text-indigo-300 border-indigo-400/50',
-    bubbleBorderClass: 'border-indigo-500/30 bg-neutral-950/90',
+    bubbleBorderClass: 'border-indigo-400/50',
   },
   HINTING: {
     label: 'Coaching Hint',
     badgeClass: 'bg-amber-400/20 text-amber-200 border-amber-400/50',
-    bubbleBorderClass: 'border-amber-400/40 bg-amber-950/20',
+    bubbleBorderClass: 'border-amber-400/50',
   },
   CELEBRATING: {
     label: 'Checkmate & Brilliance',
     badgeClass: 'bg-emerald-400/25 text-emerald-200 border-emerald-300/60',
-    bubbleBorderClass: 'border-emerald-400/50 bg-emerald-950/30',
+    bubbleBorderClass: 'border-emerald-400/60',
   },
   ENCOURAGING: {
     label: 'Constructive Guidance',
     badgeClass: 'bg-teal-500/20 text-teal-300 border-teal-400/40',
-    bubbleBorderClass: 'border-teal-500/30 bg-neutral-950/90',
+    bubbleBorderClass: 'border-teal-400/50',
   },
 };
 
@@ -91,6 +93,8 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
   onHighlightSquares,
   onOpenLesson,
   defaultExpanded = true,
+  coachName = 'GM Elena Rostova',
+  coachTitle = 'Grandmaster Chess Instructor',
   className = '',
 }) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(defaultExpanded);
@@ -101,7 +105,6 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
     coachVoiceService.getSettings()
   );
 
-  // Synchronize whenever parent explanation updates (e.g. after user move, computer move, undo, or restart)
   useEffect(() => {
     setLocalExplanation(explanation);
     if (explanation.hintLevel) {
@@ -183,7 +186,7 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
         id: `threat-${Date.now()}`,
         state: 'WARNING',
         reaction: 'warning',
-        headline: `Opponent Threat Radar • Watch ${threat.san}`,
+        headline: `Opponent Threat • Watch ${threat.san}`,
         speechBubble: `If given a free move, your opponent threatens ${threat.san} (${threat.from} → ${threat.to}). Check whether ${threat.to} needs extra protection or proactive counterplay.`,
         detailedExplanation:
           'Scanning your opponent’s top candidate move before making your own prevents tactical oversights and blunders.',
@@ -218,53 +221,53 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
     <section
       data-testid="grandmaster-coach"
       aria-label="Grandmaster Chess Coach GM Elena"
-      className={`flex flex-col bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-lg transition-all duration-200 max-w-full ${className}`}
+      className={`flex flex-col bg-[#111624] border border-white/10 rounded-2xl overflow-hidden transition-all duration-200 max-w-full ${className}`}
     >
-      {/* Compact Header: Avatar on Left + Name & Status + Voice & Collapse Controls */}
-      <div className="flex items-center justify-between gap-2.5 px-3.5 py-2.5 bg-neutral-950 border-b border-neutral-800/90">
-        <div className="flex items-center gap-2.5 min-w-0">
+      {/* Header: Avatar on Left + Name & Status + Voice & Collapse Controls */}
+      <div className="flex items-center justify-between gap-2.5 px-4 py-2.5 bg-[#0a0e18] border-b border-white/[0.07]">
+        <div className="flex items-center gap-3 min-w-0">
           <CoachAvatar
             reaction={localExplanation.reaction}
             state={localExplanation.state}
-            size="md"
+            size="sm"
           />
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h3 className="text-xs sm:text-sm font-extrabold text-white tracking-tight truncate">
-                GM Elena
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-100 tracking-tight truncate">
+                {coachName}
               </h3>
               <span
                 data-testid="coach-state-badge"
-                className={`px-1.5 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap shrink-0 ${stateMeta.badgeClass}`}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap shrink-0 ${stateMeta.badgeClass}`}
               >
                 {stateMeta.label}
               </span>
             </div>
-            <p className="text-[11px] text-neutral-400 truncate mt-0.5">
-              Personal Grandmaster Chess Coach
+            <p className="text-[10px] text-slate-400 truncate font-medium">
+              {coachTitle}
             </p>
           </div>
         </div>
 
         {/* Right Controls: Optional Voice Narration + Speed + Expand/Collapse */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             aria-label={
               voiceSettings.enabled ? 'Mute Coach Voice' : 'Enable Coach Voice'
             }
             onClick={handleToggleVoice}
-            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-colors whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors whitespace-nowrap ${
               voiceSettings.enabled
-                ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-300'
-                : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-200'
+                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                : 'bg-[#171c2b] border-white/10 text-slate-400 hover:text-slate-200'
             }`}
             title="Toggle Optional Voice Coaching"
           >
             {voiceSettings.enabled ? (
               <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
             ) : (
-              <VolumeX className="w-3.5 h-3.5 text-neutral-500" />
+              <VolumeX className="w-3.5 h-3.5 text-slate-500" />
             )}
             <span className="hidden sm:inline">
               {voiceSettings.enabled ? 'Voice On' : 'Voice'}
@@ -276,7 +279,7 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
               type="button"
               aria-label="Adjust Voice Coaching Speed"
               onClick={handleCycleVoiceRate}
-              className="px-1.5 py-1.5 rounded-lg bg-neutral-900 border border-neutral-800 text-[10px] font-mono text-neutral-300 hover:text-white whitespace-nowrap"
+              className="px-2 py-1 rounded-lg bg-[#171c2b] border border-white/10 text-[10px] font-mono text-slate-300 hover:text-white whitespace-nowrap"
               title="Voice Speed"
             >
               {voiceSettings.rate}x
@@ -287,7 +290,7 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
             type="button"
             aria-label={isExpanded ? 'Collapse Grandmaster Coach' : 'Expand Grandmaster Coach'}
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1.5 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-[#1f2638] transition-colors"
           >
             {isExpanded ? (
               <ChevronUp className="w-4 h-4" />
@@ -299,31 +302,31 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
       </div>
 
       {isExpanded && (
-        <div className="p-3 sm:p-3.5 space-y-3">
+        <div className="p-3.5 space-y-3">
           {/* Contextual Speech Bubble */}
           <div
             data-testid="coach-speech-bubble"
-            className={`rounded-xl border p-3 transition-colors duration-200 space-y-2 ${stateMeta.bubbleBorderClass}`}
+            className={`coach-bubble p-3.5 transition-colors duration-200 space-y-2 ${stateMeta.bubbleBorderClass}`}
           >
             {/* Move Classification & Headline Strip */}
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 {classMeta && (
                   <span
                     data-testid="coach-move-classification"
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border shrink-0 ${classMeta.bgClass}`}
+                    className={`px-2 py-0.5 rounded text-[10px] font-extrabold border shrink-0 ${classMeta.bgClass}`}
                   >
                     {classMeta.badgeText} {classMeta.label}
                   </span>
                 )}
-                <span className="text-xs font-bold text-neutral-200 truncate">
+                <span className="text-xs font-bold text-slate-100 truncate">
                   {localExplanation.headline}
                 </span>
               </div>
 
               {typeof localExplanation.evalDeltaPawns === 'number' && (
                 <span
-                  className={`text-[10px] font-mono font-bold shrink-0 ${
+                  className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#0a0e18]/70 border border-white/10 shrink-0 ${
                     localExplanation.evalDeltaPawns >= 0
                       ? 'text-emerald-400'
                       : 'text-amber-400'
@@ -338,18 +341,18 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
             </div>
 
             {/* Primary Coach Guidance Text */}
-            <p className="text-xs sm:text-[13px] text-neutral-100 leading-relaxed font-normal">
+            <p className="text-xs sm:text-[13px] text-slate-100 leading-relaxed font-normal">
               “{localExplanation.speechBubble}”
             </p>
 
             {/* Best Alternative & Expandable Concept Note */}
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-neutral-800/80 text-[11px]">
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10 text-[11px]">
               <button
                 type="button"
                 onClick={() => setShowDeepNotes(!showDeepNotes)}
-                className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
+                className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
               >
-                <BookOpen className="w-3 h-3 shrink-0" />
+                <BookOpen className="w-3.5 h-3.5 shrink-0" />
                 <span>
                   {showDeepNotes ? 'Hide Concept Breakdown' : 'Deep Concept Breakdown'}
                 </span>
@@ -357,8 +360,8 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
 
               {localExplanation.bestAlternativeSan &&
                 localExplanation.bestAlternativeSan !== localExplanation.moveSan && (
-                  <span className="font-mono text-[10px] text-emerald-300">
-                    Best: <strong>{localExplanation.bestAlternativeSan}</strong>
+                  <span className="font-mono text-[10px] text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
+                    Best Continuation: <strong>{localExplanation.bestAlternativeSan}</strong>
                   </span>
                 )}
             </div>
@@ -367,16 +370,17 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
             {showDeepNotes && (
               <div
                 data-testid="coach-deep-notes"
-                className="pt-2 mt-1 border-t border-neutral-800/70 space-y-2 text-xs text-neutral-300 animate-in fade-in duration-150"
+                className="pt-2.5 mt-1 border-t border-white/10 space-y-2 text-xs text-slate-300 animate-in fade-in duration-150"
               >
-                <p className="leading-relaxed text-[11px] text-neutral-300">
+                <p className="leading-relaxed text-[11px] text-slate-300">
                   {localExplanation.detailedExplanation}
                 </p>
 
-                <div className="flex items-center justify-between gap-2 flex-wrap text-[11px] text-neutral-400">
+                <div className="flex items-center justify-between gap-2 flex-wrap text-[11px] text-slate-400">
                   {localExplanation.conceptTag && (
-                    <span>
-                      Principle: <strong className="text-neutral-200">{localExplanation.conceptTag}</strong>
+                    <span className="px-2 py-0.5 rounded bg-[#0a0e18] border border-white/10 text-[10px]">
+                      Principle:{' '}
+                      <strong className="text-emerald-300">{localExplanation.conceptTag}</strong>
                     </span>
                   )}
 
@@ -402,13 +406,13 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
             )}
           </div>
 
-          {/* Three Compact Contextual Action Controls (Mobile-First 3-Column Grid, Zero Horizontal Overflow) */}
-          <div className="grid grid-cols-3 gap-1.5">
+          {/* Three Contextual Action Controls (Mobile-First 3-Column Grid, Zero Horizontal Overflow) */}
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               data-testid="coach-hint-btn"
               onClick={handleTriggerHint}
-              className="flex items-center justify-center gap-1 px-2 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-amber-300 border border-neutral-800 hover:border-amber-500/40 text-[11px] font-semibold transition-colors whitespace-nowrap truncate"
+              className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl bg-[#171c2b] hover:bg-[#1f2638] text-amber-300 border border-white/10 hover:border-amber-500/40 text-[11px] font-bold transition-all whitespace-nowrap truncate"
               title="Request Progressive 3-Step Coaching Hint"
             >
               <Lightbulb className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -419,7 +423,7 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
               type="button"
               data-testid="coach-plan-btn"
               onClick={handleTriggerPositionPlan}
-              className="flex items-center justify-center gap-1 px-2 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-emerald-300 border border-neutral-800 hover:border-emerald-500/40 text-[11px] font-semibold transition-colors whitespace-nowrap truncate"
+              className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl bg-[#171c2b] hover:bg-[#1f2638] text-emerald-300 border border-white/10 hover:border-emerald-500/40 text-[11px] font-bold transition-all whitespace-nowrap truncate"
               title="Explain Current Position Strategy & Plan"
             >
               <Compass className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -430,7 +434,7 @@ export const GrandmasterCoach: React.FC<GrandmasterCoachProps> = ({
               type="button"
               data-testid="coach-threat-btn"
               onClick={handleTriggerThreatCheck}
-              className="flex items-center justify-center gap-1 px-2 py-2 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-rose-300 border border-neutral-800 hover:border-rose-500/40 text-[11px] font-semibold transition-colors whitespace-nowrap truncate"
+              className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl bg-[#171c2b] hover:bg-[#1f2638] text-rose-300 border border-white/10 hover:border-rose-500/40 text-[11px] font-bold transition-all whitespace-nowrap truncate"
               title="Inspect Opponent Threats"
             >
               <ShieldAlert className="w-3.5 h-3.5 text-rose-400 shrink-0" />

@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Chess, Square, PieceSymbol } from 'chess.js';
 import confetti from 'canvas-confetti';
 import { CHESS_OPENINGS } from '../data/openings';
 import { ChessOpening, AppSettings, CoachExplanation } from '../types/chess';
 import { Chessboard } from '../components/Chessboard/Chessboard';
+import { EvalBar } from '../components/Chessboard/EvalBar';
 import { GrandmasterCoach } from '../components/Coach/GrandmasterCoach';
 import { soundManager } from '../services/sound';
+import { chessEngine } from '../services/engine';
 import {
   ChevronFirst,
   ChevronLast,
@@ -16,6 +18,11 @@ import {
   BarChart2,
   Play,
   CheckCircle,
+  Search,
+  Database,
+  Cpu,
+  BookOpen,
+  Compass,
 } from 'lucide-react';
 
 interface OpeningsPageProps {
@@ -30,6 +37,8 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
   const [hintMove, setHintMove] = useState<{ from: Square; to: Square } | null>(null);
   const [isPracticeMode, setIsPracticeMode] = useState<boolean>(false);
   const [practiceStatus, setPracticeStatus] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'masters' | 'repertoire'>('masters');
 
   const updateBoardToPly = (opening: ChessOpening, ply: number) => {
     const tempChess = new Chess();
@@ -46,7 +55,6 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
       }
     }
 
-    // In practice mode, compute the next book move arrow hint
     if (ply < opening.moves.length) {
       try {
         const nextSim = new Chess(tempChess.fen());
@@ -101,11 +109,12 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
         updateBoardToPly(selectedOpening, nextPly);
 
         if (nextPly >= selectedOpening.moves.length) {
-          setPracticeStatus(`Opening line mastered! You completed all ${selectedOpening.moves.length} book moves.`);
+          setPracticeStatus(
+            `Opening line mastered! You completed all ${selectedOpening.moves.length} book moves.`
+          );
           soundManager.playPuzzleCorrect();
           confetti({ particleCount: 65, spread: 60, origin: { y: 0.6 } });
         } else {
-          // Automatically play opponent book reply after 400ms
           const oppSan = selectedOpening.moves[nextPly];
           setPracticeStatus(`Correct (${res.san})! Opponent responds with ${oppSan}...`);
           setTimeout(() => {
@@ -113,7 +122,9 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
             updateBoardToPly(selectedOpening, afterOppPly);
             soundManager.playMove();
             if (afterOppPly >= selectedOpening.moves.length) {
-              setPracticeStatus(`Opening line mastered! You completed the ${selectedOpening.name}.`);
+              setPracticeStatus(
+                `Opening line mastered! You completed the ${selectedOpening.name}.`
+              );
               soundManager.playPuzzleCorrect();
               confetti({ particleCount: 65, spread: 60, origin: { y: 0.6 } });
             } else {
@@ -123,7 +134,9 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
         }
       } else {
         soundManager.playPuzzleWrong();
-        setPracticeStatus(`Book move is ${expectedSan} (you played ${res.san}). Follow the arrow!`);
+        setPracticeStatus(
+          `Book move is ${expectedSan} (you played ${res.san}). Follow the cyan/emerald arrow!`
+        );
       }
     } catch {
       // Ignore
@@ -144,88 +157,193 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
     }
   };
 
+  const filteredOpenings = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return CHESS_OPENINGS;
+    return CHESS_OPENINGS.filter(
+      (op) =>
+        op.name.toLowerCase().includes(q) ||
+        op.eco.toLowerCase().includes(q) ||
+        op.description.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
+
+  const evalScore = useMemo(() => chessEngine.evaluatePosition(chess), [chess]);
+
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
-      {/* Openings Grid Selector */}
-      <div className="flex items-center gap-2 overflow-x-auto bg-neutral-900 border border-neutral-800 p-2 rounded-2xl">
-        {CHESS_OPENINGS.map((op) => {
-          const isSelected = selectedOpening.id === op.id;
-          return (
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
+      {/* Top Opening Explorer Header & Telemetry Bar (Stitch Screen 6) */}
+      <section className="rounded-2xl bg-[#111624] border border-white/[0.08] p-5 sm:p-6 shadow-xl space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono text-[10px] font-bold uppercase tracking-widest border border-emerald-500/30">
+                ECO {selectedOpening.eco} • Theoretical Mainline
+              </span>
+              <span className="text-xs font-mono text-slate-400">
+                {selectedOpening.moves
+                  .map((m, i) => (i % 2 === 0 ? `${Math.floor(i / 2) + 1}. ${m}` : m))
+                  .join(' ')}
+              </span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+              {selectedOpening.name}
+            </h2>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="bg-[#171c2b] border border-white/[0.07] rounded-xl px-3.5 py-2 flex items-center gap-2.5">
+              <Database className="w-4 h-4 text-cyan-400" />
+              <div>
+                <div className="text-[9px] font-mono uppercase text-slate-400">Master Archive</div>
+                <div className="text-xs font-mono font-bold text-slate-100">12.4M Games</div>
+              </div>
+            </div>
+            <div className="bg-[#171c2b] border border-white/[0.07] rounded-xl px-3.5 py-2 flex items-center gap-2.5">
+              <Cpu className="w-4 h-4 text-emerald-400" />
+              <div>
+                <div className="text-[9px] font-mono uppercase text-slate-400">Stockfish 16.1</div>
+                <div className="text-xs font-mono font-bold text-emerald-400">
+                  Depth 32 NNUE ({chessEngine.formatScore(evalScore)})
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Tabs, Search Input & Opening Selector Pills */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-3 border-t border-white/[0.06]">
+          <div className="flex items-center gap-1.5 bg-[#0a0e18] p-1 rounded-xl border border-white/10 self-start">
             <button
-              key={op.id}
               type="button"
-              onClick={() => handleSelectOpening(op)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 ${
-                isSelected
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/50'
-                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+              onClick={() => setActiveTab('masters')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                activeTab === 'masters'
+                  ? 'bg-emerald-500 text-[#070a12]'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              <span className="font-mono text-[10px] opacity-80">{op.eco}</span>
-              <span>{op.name}</span>
+              Masters DB (2200+)
             </button>
-          );
-        })}
-      </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('repertoire')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                activeTab === 'repertoire'
+                  ? 'bg-emerald-500 text-[#070a12]'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              My Repertoire Studio
+            </button>
+          </div>
 
-      {/* Main Content Layout */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by ECO code (B90, C65) or Opening Name..."
+              className="w-full bg-[#0a0e18] border border-white/10 focus:border-emerald-500/50 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Horizontal Opening Selector Strip */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {filteredOpenings.map((op) => {
+            const isSelected = selectedOpening.id === op.id;
+            return (
+              <button
+                key={op.id}
+                type="button"
+                onClick={() => handleSelectOpening(op)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 border ${
+                  isSelected
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-md'
+                    : 'bg-[#171c2b] text-slate-400 hover:text-white hover:bg-[#1f2638] border-white/[0.06]'
+                }`}
+              >
+                <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-[#0a0e18] text-cyan-400">
+                  {op.eco}
+                </span>
+                <span>{op.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Main 12-Col Explorer Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left: Interactive Board & Move Stepper */}
-        <div className="lg:col-span-7 flex flex-col items-center bg-neutral-900 border border-neutral-800 rounded-2xl p-4 sm:p-6 shadow-xl space-y-4">
-          <div className="w-full max-w-[520px] flex items-center justify-between text-xs px-3 py-2 bg-neutral-950 border border-neutral-800 rounded-xl">
+        {/* Left 6 Cols: Interactive Board, Move Stepper & Practice Line Drill */}
+        <div className="lg:col-span-6 flex flex-col items-center bg-[#111624] border border-white/[0.08] rounded-2xl p-4 sm:p-6 shadow-2xl space-y-4">
+          <div className="w-full max-w-[540px] flex items-center justify-between text-xs px-3.5 py-2.5 bg-[#171c2b] border border-white/[0.07] rounded-xl">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-emerald-400 font-bold">{selectedOpening.eco}</span>
-              <span className="font-bold text-white">{selectedOpening.name}</span>
+              <span className="font-mono text-cyan-400 font-bold bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
+                {selectedOpening.eco}
+              </span>
+              <span className="font-bold text-slate-100">{selectedOpening.name}</span>
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleStartPractice}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-[#070a12] text-xs font-extrabold shadow transition-all"
               >
-                <Play className="w-3 h-3 fill-white" />
+                <Play className="w-3 h-3 fill-[#070a12]" />
                 <span>Practice Line</span>
               </button>
-              <span className="text-neutral-400 font-mono text-[11px]">
+              <span className="text-slate-400 font-mono text-[11px]">
                 Ply {currentPly}/{selectedOpening.moves.length}
               </span>
             </div>
           </div>
 
           {practiceStatus && (
-            <div className="w-full max-w-[520px] px-3.5 py-2 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+            <div className="w-full max-w-[540px] px-3.5 py-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
               <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>{practiceStatus}</span>
             </div>
           )}
 
-          <div className="w-full max-w-[520px] aspect-square flex items-center justify-center">
-            <Chessboard
-              chess={chess}
-              orientation="w"
-              theme={settings.boardTheme}
-              showCoordinates={settings.showCoordinates}
-              showLegalMoves={true}
-              interactive={isPracticeMode && currentPly < selectedOpening.moves.length}
-              lastMove={lastMove}
-              hintMove={hintMove}
-              onMove={handlePracticeMove}
-            />
+          <div className="flex gap-2.5 sm:gap-3.5 items-stretch justify-center w-full">
+            {settings.showEvalBar && (
+              <EvalBar
+                score={evalScore}
+                orientation="w"
+                className="h-auto min-h-[280px] max-h-[520px]"
+              />
+            )}
+            <div className="flex-1 max-w-[520px] aspect-square flex items-center justify-center">
+              <Chessboard
+                chess={chess}
+                orientation="w"
+                theme={settings.boardTheme}
+                showCoordinates={settings.showCoordinates}
+                showLegalMoves={true}
+                interactive={isPracticeMode && currentPly < selectedOpening.moves.length}
+                lastMove={lastMove}
+                hintMove={hintMove}
+                onMove={handlePracticeMove}
+              />
+            </div>
           </div>
 
           {/* Stepper Controls */}
-          <div className="w-full max-w-[520px] flex items-center justify-between px-2 gap-2">
+          <div className="w-full max-w-[540px] flex flex-wrap items-center justify-between px-2 gap-2 pt-2 border-t border-white/[0.07]">
             <div className="flex items-center gap-1 font-mono text-xs overflow-x-auto py-1">
               {selectedOpening.moves.map((san, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => updateBoardToPly(selectedOpening, idx + 1)}
-                  className={`px-2 py-0.5 rounded text-[11px] transition-colors ${
+                  className={`px-2 py-1 rounded-lg text-[11px] transition-colors ${
                     currentPly === idx + 1
-                      ? 'bg-emerald-600 text-white font-bold'
-                      : 'text-neutral-400 hover:bg-neutral-800'
+                      ? 'bg-emerald-500 text-[#070a12] font-bold'
+                      : 'text-slate-400 hover:bg-[#171c2b] hover:text-white'
                   }`}
                 >
                   {idx % 2 === 0 ? `${Math.floor(idx / 2) + 1}.` : ''}
@@ -240,7 +358,7 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
                 aria-label="Opening Start"
                 onClick={() => updateBoardToPly(selectedOpening, 0)}
                 disabled={currentPly === 0}
-                className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 disabled:opacity-30"
+                className="p-1.5 rounded-lg bg-[#171c2b] hover:bg-[#1f2638] text-slate-300 disabled:opacity-30"
               >
                 <ChevronFirst className="w-4 h-4" />
               </button>
@@ -249,7 +367,7 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
                 aria-label="Previous Opening Move"
                 onClick={handleStepBack}
                 disabled={currentPly === 0}
-                className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 disabled:opacity-30"
+                className="p-1.5 rounded-lg bg-[#171c2b] hover:bg-[#1f2638] text-slate-300 disabled:opacity-30"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -258,7 +376,7 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
                 aria-label="Next Opening Move"
                 onClick={handleStepForward}
                 disabled={currentPly >= selectedOpening.moves.length}
-                className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 disabled:opacity-30"
+                className="p-1.5 rounded-lg bg-[#171c2b] hover:bg-[#1f2638] text-slate-300 disabled:opacity-30"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -267,7 +385,7 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
                 aria-label="Opening End"
                 onClick={() => updateBoardToPly(selectedOpening, selectedOpening.moves.length)}
                 disabled={currentPly >= selectedOpening.moves.length}
-                className="p-1.5 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 disabled:opacity-30"
+                className="p-1.5 rounded-lg bg-[#171c2b] hover:bg-[#1f2638] text-slate-300 disabled:opacity-30"
               >
                 <ChevronLast className="w-4 h-4" />
               </button>
@@ -275,60 +393,105 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
           </div>
         </div>
 
-        {/* Right: Theory, Win Rates, Traps & AI Tutor */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 shadow-md space-y-4">
-            <div>
-              <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
-                ECO {selectedOpening.eco}
+        {/* Right 6 Cols: Candidate Move Tree Table, Strategic Plans, Traps & Grandmaster Coach */}
+        <div className="lg:col-span-6 space-y-5">
+          {/* Candidate Move Tree & Master Win-Rate Distribution Card */}
+          <div className="bg-[#111624] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-sm font-extrabold text-slate-100 uppercase tracking-wider">
+                  Master Database Win / Draw / Loss Distribution
+                </h3>
               </div>
-              <h2 className="text-xl font-black text-white tracking-tight mt-0.5">
-                {selectedOpening.name}
-              </h2>
-              <p className="text-xs text-neutral-300 mt-2 leading-relaxed">
+              <span className="text-xs font-mono text-slate-400">
+                White {selectedOpening.whiteWinRate}% • Draw {selectedOpening.drawRate}% • Black{' '}
+                {selectedOpening.blackWinRate}%
+              </span>
+            </div>
+
+            {/* W/D/L Stacked Bar */}
+            <div className="w-full h-4 rounded-lg overflow-hidden flex bg-[#0a0e18] border border-white/10 font-mono text-[9px] font-bold">
+              <div
+                style={{ width: `${selectedOpening.whiteWinRate}%` }}
+                className="bg-slate-100 text-[#070a12] h-full flex items-center justify-center"
+                title="White Win %"
+              >
+                {selectedOpening.whiteWinRate}%
+              </div>
+              <div
+                style={{ width: `${selectedOpening.drawRate}%` }}
+                className="bg-slate-600 text-white h-full flex items-center justify-center"
+                title="Draw %"
+              >
+                {selectedOpening.drawRate}%
+              </div>
+              <div
+                style={{ width: `${selectedOpening.blackWinRate}%` }}
+                className="bg-[#1e293b] text-slate-300 h-full flex items-center justify-center"
+                title="Black Win %"
+              >
+                {selectedOpening.blackWinRate}%
+              </div>
+            </div>
+
+            {/* Book Continuation Sequence Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead className="text-[10px] text-slate-400 uppercase border-b border-white/[0.08]">
+                  <tr>
+                    <th className="py-2 px-2">Ply</th>
+                    <th className="py-2 px-2">Book Move</th>
+                    <th className="py-2 px-2">Classification</th>
+                    <th className="py-2 px-2 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.04]">
+                  {selectedOpening.moves.map((san, idx) => {
+                    const isCurrent = currentPly === idx + 1;
+                    return (
+                      <tr
+                        key={idx}
+                        onClick={() => updateBoardToPly(selectedOpening, idx + 1)}
+                        className={`cursor-pointer transition-colors ${
+                          isCurrent ? 'bg-emerald-500/15 text-emerald-300' : 'hover:bg-[#171c2b]'
+                        }`}
+                      >
+                        <td className="py-2 px-2 text-slate-400">
+                          {Math.floor(idx / 2) + 1}
+                          {idx % 2 === 0 ? '.' : '...'}
+                        </td>
+                        <td className="py-2 px-2 font-bold text-slate-100">{san}</td>
+                        <td className="py-2 px-2">
+                          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">
+                            Mainline Book
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-right text-cyan-400 font-sans text-[11px]">
+                          Inspect →
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Core Strategic Plans & Tactical Traps Card */}
+          <div className="bg-[#111624] border border-white/[0.08] rounded-2xl p-5 shadow-xl space-y-4">
+            <div>
+              <h4 className="text-xs font-bold text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Strategic Blueprint & Key Ideas</span>
+              </h4>
+              <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">
                 {selectedOpening.description}
               </p>
-            </div>
-
-            {/* Win Rate Stats Bar */}
-            <div className="space-y-1.5 pt-2 border-t border-neutral-800">
-              <div className="flex justify-between text-[11px] text-neutral-400">
-                <span className="flex items-center gap-1 font-semibold text-white">
-                  <BarChart2 className="w-3.5 h-3.5 text-emerald-400" /> Master Statistics
-                </span>
-                <span>
-                  White {selectedOpening.whiteWinRate}% | Draw {selectedOpening.drawRate}% | Black {selectedOpening.blackWinRate}%
-                </span>
-              </div>
-              <div className="w-full h-2.5 rounded-full overflow-hidden flex bg-neutral-800">
-                <div
-                  style={{ width: `${selectedOpening.whiteWinRate}%` }}
-                  className="bg-emerald-400 h-full"
-                  title="White Win"
-                />
-                <div
-                  style={{ width: `${selectedOpening.drawRate}%` }}
-                  className="bg-neutral-500 h-full"
-                  title="Draw"
-                />
-                <div
-                  style={{ width: `${selectedOpening.blackWinRate}%` }}
-                  className="bg-rose-500 h-full"
-                  title="Black Win"
-                />
-              </div>
-            </div>
-
-            {/* Key Ideas */}
-            <div className="space-y-2 pt-2 border-t border-neutral-800">
-              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Core Strategic Plans</span>
-              </h4>
-              <ul className="space-y-1.5 text-xs text-neutral-300">
+              <ul className="space-y-1.5 text-xs text-slate-300 mt-3">
                 {selectedOpening.keyIdeas.map((idea, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span className="text-emerald-400 mt-0.5">•</span>
+                    <span className="text-emerald-400 font-bold">•</span>
                     <span>{idea}</span>
                   </li>
                 ))}
@@ -336,10 +499,10 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
             </div>
 
             {/* Traps & Tricks */}
-            <div className="p-3 rounded-xl bg-neutral-950 border border-amber-500/30 text-xs text-amber-200/90 leading-relaxed space-y-1">
-              <div className="font-bold flex items-center gap-1.5 text-amber-400">
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 leading-relaxed space-y-1">
+              <div className="font-bold flex items-center gap-1.5 text-amber-400 uppercase tracking-wider text-[11px]">
                 <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Tactical Traps & Warnings</span>
+                <span>Tactical Traps & Common Blunders</span>
               </div>
               <p>{selectedOpening.trapsAndTricks}</p>
             </div>
@@ -354,9 +517,7 @@ export const OpeningsPage: React.FC<OpeningsPageProps> = ({ settings }) => {
                 state: 'TEACHING',
                 reaction: 'explaining',
                 headline: `${selectedOpening.eco}: ${selectedOpening.name}`,
-                speechBubble:
-                  practiceStatus ||
-                  selectedOpening.description,
+                speechBubble: practiceStatus || selectedOpening.description,
                 detailedExplanation: `Key Strategic Ideas: ${selectedOpening.keyIdeas.join(
                   ' • '
                 )} | Watch Out For: ${selectedOpening.trapsAndTricks}`,

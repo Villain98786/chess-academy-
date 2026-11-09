@@ -1,14 +1,10 @@
 import React from 'react';
 import {
-  LayoutDashboard,
-  GraduationCap,
-  Swords,
+  Home,
   Bot,
+  GraduationCap,
   Puzzle,
-  BookOpen,
-  LineChart,
   User,
-  Settings,
   ChevronLeft,
   ChevronRight,
   Flame,
@@ -28,7 +24,7 @@ export type NavPage =
 
 interface SidebarProps {
   currentPage: NavPage;
-  onNavigate: (page: NavPage) => void;
+  onNavigate: (page: NavPage, context?: unknown) => void;
   stats: UserStats;
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -41,116 +37,139 @@ export const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
   onToggleCollapsed,
 }) => {
-  const navItems: { id: NavPage; label: string; icon: React.ReactNode; badge?: string }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
-    { id: 'learn', label: 'Learn Chess', icon: <GraduationCap className="w-5 h-5" />, badge: `${stats.lessonsCompleted.length}/23` },
-    { id: 'practice', label: 'Practice', icon: <Swords className="w-5 h-5" /> },
-    { id: 'play', label: 'Play Computer', icon: <Bot className="w-5 h-5" /> },
-    { id: 'puzzles', label: 'Puzzles', icon: <Puzzle className="w-5 h-5" />, badge: `${stats.puzzlesSolved}` },
-    { id: 'openings', label: 'Openings', icon: <BookOpen className="w-5 h-5" /> },
-    { id: 'analysis', label: 'Game Analysis', icon: <LineChart className="w-5 h-5" /> },
-    { id: 'profile', label: 'Profile & Progress', icon: <User className="w-5 h-5" /> },
-    { id: 'settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
+  // Phase 3: Only 5 primary navigation destinations
+  const navItems: {
+    id: NavPage;
+    label: string;
+    icon: React.ReactNode;
+    activeMatch: NavPage[];
+  }[] = [
+    {
+      id: 'dashboard',
+      label: 'Home',
+      icon: <Home className="w-5 h-5" />,
+      activeMatch: ['dashboard'],
+    },
+    {
+      id: 'play',
+      label: 'Play',
+      icon: <Bot className="w-5 h-5" />,
+      activeMatch: ['play'],
+    },
+    {
+      id: 'learn',
+      label: 'Learn',
+      icon: <GraduationCap className="w-5 h-5" />,
+      activeMatch: ['learn', 'openings', 'practice'],
+    },
+    {
+      id: 'puzzles',
+      label: 'Puzzles',
+      icon: <Puzzle className="w-5 h-5" />,
+      activeMatch: ['puzzles'],
+    },
+    {
+      id: 'profile',
+      label: 'Profile',
+      icon: <User className="w-5 h-5" />,
+      activeMatch: ['profile', 'analysis', 'settings'],
+    },
   ];
 
   return (
     <aside
-      className={`relative flex flex-col bg-neutral-950 border-r border-neutral-800 transition-all duration-300 z-20 ${
-        collapsed ? 'w-18' : 'w-64'
+      aria-label="Primary Navigation"
+      className={`relative flex flex-col bg-[#0a0e18] border-r border-white/[0.07] transition-all duration-200 z-20 select-none ${
+        collapsed ? 'w-20' : 'w-60'
       }`}
     >
       {/* Brand Header */}
-      <div className="flex items-center justify-between p-4 border-b border-neutral-800/80">
+      <div className="flex items-center justify-between px-4 h-16 border-b border-white/[0.07]">
         <button
+          type="button"
           onClick={() => onNavigate('dashboard')}
           className="flex items-center gap-3 text-left overflow-hidden group"
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white shadow-lg shadow-emerald-950/50 shrink-0 group-hover:scale-105 transition-transform">
-            <span className="text-2xl leading-none">♚</span>
+          <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center text-[#070a12] shrink-0">
+            <span className="text-xl leading-none font-black">♚</span>
           </div>
           {!collapsed && (
             <div className="truncate">
-              <span className="font-extrabold text-white text-base tracking-tight block">AI CHESS</span>
-              <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider block">ACADEMY</span>
+              <span className="font-extrabold text-slate-100 text-sm tracking-tight block leading-tight">
+                Chess Academy
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium block">
+                Grandmaster Studio
+              </span>
             </div>
           )}
         </button>
 
         <button
+          type="button"
           onClick={onToggleCollapsed}
-          className="hidden md:flex p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+          className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#171c2b] transition-colors"
           title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
       </div>
 
-      {/* User Mini Stat Pill */}
-      {!collapsed && (
-        <div className="mx-3 mt-3 p-3 bg-neutral-900/90 rounded-xl border border-neutral-800/80 flex items-center justify-between shadow-sm">
-          <div>
-            <div className="text-[11px] text-neutral-400">Estimated Elo</div>
-            <div className="text-lg font-black text-emerald-400 font-mono leading-none mt-0.5">
-              {stats.estimatedElo}
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-xs font-bold">
-            <Flame className="w-4 h-4 fill-amber-400 animate-pulse" />
-            <span>{stats.dailyStreak}d</span>
-          </div>
-        </div>
-      )}
-
-      {/* Navigation List */}
-      <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
+      {/* Primary 5-Item Navigation List */}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive = currentPage === item.id;
+          const isActive = item.activeMatch.includes(currentPage);
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => onNavigate(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 isActive
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/50 font-semibold'
-                  : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900'
+                  ? 'bg-emerald-500/15 text-emerald-400 font-bold'
+                  : 'text-slate-400 hover:text-slate-100 hover:bg-[#171c2b]/70'
               } ${collapsed ? 'justify-center px-0' : ''}`}
               title={collapsed ? item.label : undefined}
             >
-              <span className={`shrink-0 ${isActive ? 'text-white' : 'text-neutral-400 group-hover:text-emerald-400'}`}>
-                {item.icon}
-              </span>
-              {!collapsed && (
-                <div className="flex-1 flex items-center justify-between overflow-hidden">
-                  <span className="truncate">{item.label}</span>
-                  {item.badge && (
-                    <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono ${
-                        isActive
-                          ? 'bg-emerald-800 text-emerald-100'
-                          : 'bg-neutral-800 text-neutral-400 group-hover:text-neutral-200'
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-              )}
+              <span className="shrink-0">{item.icon}</span>
+              {!collapsed && <span className="truncate">{item.label}</span>}
             </button>
           );
         })}
       </nav>
 
-      {/* Footer / Quick Coach Prompt */}
-      {!collapsed && (
-        <div className="p-3 m-3 bg-gradient-to-br from-emerald-950/40 to-neutral-900 border border-emerald-900/30 rounded-xl text-xs space-y-1">
-          <div className="flex items-center gap-1.5 text-emerald-400 font-semibold text-[11px]">
-            <span>✨</span> GM Elena Online
-          </div>
-          <p className="text-[11px] text-neutral-400 leading-tight">
-            Ask for hints or move analysis anytime during practice!
-          </p>
-        </div>
-      )}
+      {/* Compact Footer Summary */}
+      <div className="p-3 border-t border-white/[0.07]">
+        {!collapsed ? (
+          <button
+            type="button"
+            onClick={() => onNavigate('profile')}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#111624] hover:bg-[#171c2b] border border-white/[0.06] transition-colors text-left"
+          >
+            <div>
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+                Rating
+              </div>
+              <div className="text-sm font-bold text-slate-100 font-mono">
+                {stats.estimatedElo} ELO
+              </div>
+            </div>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-bold font-mono">
+              <Flame className="w-3.5 h-3.5 fill-amber-400" />
+              <span>{stats.dailyStreak}d</span>
+            </div>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onNavigate('profile')}
+            className="w-full flex justify-center p-2 rounded-xl bg-[#111624] border border-white/[0.06] text-emerald-400 hover:bg-[#1f2638] text-xs font-mono font-bold"
+            title={`${stats.estimatedElo} ELO`}
+          >
+            {stats.estimatedElo}
+          </button>
+        )}
+      </div>
     </aside>
   );
 };

@@ -19,24 +19,32 @@ interface ChessboardProps {
   threatMove?: { from: Square; to: Square } | null;
   lastMoveClassification?: MoveClassification | null;
   onMove?: (move: { from: Square; to: Square; promotion?: PieceSymbol }) => void;
+  onDisabledInteract?: () => void;
   className?: string;
 }
 
-const THEME_COLORS: Record<BoardTheme, { light: string; dark: string; border: string }> = {
+const THEME_COLORS: Record<BoardTheme, { light: string; dark: string; border: string; isDarkBoard?: boolean }> = {
+  grandmaster: {
+    light: '#2d3548',
+    dark: '#1a202e',
+    border: '#171c2b',
+    isDarkBoard: true,
+  },
   emerald: {
     light: '#ebecd0',
     dark: '#739552',
-    border: '#384d26',
+    border: '#1f2638',
   },
   wood: {
     light: '#f0d9b5',
     dark: '#b58863',
-    border: '#684226',
+    border: '#3e2723',
   },
   midnight: {
-    light: '#c4d1de',
-    dark: '#4d607a',
-    border: '#273344',
+    light: '#2d3548',
+    dark: '#1a202e',
+    border: '#171c2b',
+    isDarkBoard: true,
   },
   cyber: {
     light: '#a2e2c4',
@@ -85,6 +93,7 @@ interface BoardSquareProps {
   showRankLabel: boolean;
   showFileLabel: boolean;
   isLight: boolean;
+  isDarkBoard: boolean;
   squareBg: string;
   pieceType?: PieceSymbol;
   pieceColor?: Color;
@@ -104,6 +113,8 @@ interface BoardSquareProps {
   onDragStart: (e: React.DragEvent, sq: Square) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent, sq: Square) => void;
+  onTouchStart: (e: React.TouchEvent, sq: Square) => void;
+  onTouchEnd: (e: React.TouchEvent, sq: Square) => void;
   registerPieceRef: (sq: Square, el: HTMLDivElement | null) => void;
 }
 
@@ -115,6 +126,7 @@ const MemoizedBoardSquare = React.memo<BoardSquareProps>(
     showRankLabel,
     showFileLabel,
     isLight,
+    isDarkBoard,
     squareBg,
     pieceType,
     pieceColor,
@@ -134,16 +146,29 @@ const MemoizedBoardSquare = React.memo<BoardSquareProps>(
     onDragStart,
     onDragOver,
     onDrop,
+    onTouchStart,
+    onTouchEnd,
     registerPieceRef,
   }) => {
+    const coordColorClass = isDarkBoard
+      ? isLight
+        ? 'text-[#94a3b8]'
+        : 'text-[#cbd5e1]'
+      : isLight
+      ? 'text-neutral-800/70'
+      : 'text-neutral-100/80';
+
     return (
       <div
         data-square={square}
+        data-testid={`square-${square}`}
         onClick={() => onSquareClick(square)}
         onMouseDown={(e) => onMouseDown(e, square)}
         onMouseUp={(e) => onMouseUp(e, square)}
         onDragOver={onDragOver}
         onDrop={(e) => onDrop(e, square)}
+        onTouchStart={(e) => onTouchStart(e, square)}
+        onTouchEnd={(e) => onTouchEnd(e, square)}
         className="relative flex items-center justify-center cursor-pointer transition-colors duration-150 touch-none select-none"
         style={{ backgroundColor: squareBg }}
       >
@@ -168,18 +193,14 @@ const MemoizedBoardSquare = React.memo<BoardSquareProps>(
           <>
             {showRankLabel && (
               <span
-                className={`absolute top-0.5 left-1 text-[10px] sm:text-[11px] font-extrabold leading-none pointer-events-none ${
-                  isLight ? 'text-neutral-800/70' : 'text-neutral-100/80'
-                }`}
+                className={`absolute top-0.5 left-1 text-[10px] sm:text-[11px] font-mono font-bold leading-none pointer-events-none ${coordColorClass}`}
               >
                 {rank}
               </span>
             )}
             {showFileLabel && (
               <span
-                className={`absolute bottom-0.5 right-1 text-[10px] sm:text-[11px] font-extrabold leading-none pointer-events-none ${
-                  isLight ? 'text-neutral-800/70' : 'text-neutral-100/80'
-                }`}
+                className={`absolute bottom-0.5 right-1 text-[10px] sm:text-[11px] font-mono font-bold leading-none pointer-events-none ${coordColorClass}`}
               >
                 {file}
               </span>
@@ -191,9 +212,17 @@ const MemoizedBoardSquare = React.memo<BoardSquareProps>(
         {showLegalMoves && isLegalTarget && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
             {isCaptureTarget ? (
-              <div className="w-[84%] h-[84%] rounded-full border-[5px] border-black/25 transition-transform duration-150 scale-100 hover:scale-105" />
+              <div
+                className={`w-[84%] h-[84%] rounded-full border-[5px] transition-transform duration-150 scale-100 hover:scale-105 ${
+                  isDarkBoard ? 'border-[#10b981]/65' : 'border-black/25'
+                }`}
+              />
             ) : (
-              <div className="w-[30%] h-[30%] rounded-full bg-black/22 transition-transform duration-150" />
+              <div
+                className={`w-[30%] h-[30%] rounded-full transition-transform duration-150 ${
+                  isDarkBoard ? 'bg-[#10b981]/60 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-black/22'
+                }`}
+              />
             )}
           </div>
         )}
@@ -241,10 +270,10 @@ export const Chessboard: React.FC<ChessboardProps> = React.memo(
     threatMove = null,
     lastMoveClassification = null,
     onMove,
+    onDisabledInteract,
     className = '',
   }) => {
     const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
-    const [legalMoves, setLegalMoves] = useState<Move[]>([]);
     const [pendingPromotion, setPendingPromotion] = useState<{ from: Square; to: Square } | null>(
       null
     );
@@ -252,6 +281,7 @@ export const Chessboard: React.FC<ChessboardProps> = React.memo(
     // Drag and Right-click tactical annotation state
     const [draggingSquare, setDraggingSquare] = useState<Square | null>(null);
     const rightClickStartRef = useRef<Square | null>(null);
+    const touchStartSquareRef = useRef<Square | null>(null);
     const [userArrows, setUserArrows] = useState<{ from: Square; to: Square }[]>([]);
     const [markedSquares, setMarkedSquares] = useState<Square[]>([]);
     const [captureBurstSquare, setCaptureBurstSquare] = useState<Square | null>(null);
@@ -264,6 +294,13 @@ export const Chessboard: React.FC<ChessboardProps> = React.memo(
     const files = orientation === 'w' ? FILES : FILES_REV;
     const ranks = orientation === 'w' ? RANKS : RANKS_REV;
     const currentFen = chess.fen();
+
+    // Clear stale selection or pending promotion whenever board FEN changes
+    useEffect(() => {
+      setSelectedSquare(null);
+      setPendingPromotion(null);
+      setDraggingSquare(null);
+    }, [currentFen]);
 
     const registerPieceRef = useCallback((sq: Square, el: HTMLDivElement | null) => {
       pieceRefs.current[sq] = el;
@@ -324,14 +361,12 @@ export const Chessboard: React.FC<ChessboardProps> = React.memo(
       return null;
     }, [chess, currentFen]);
 
-    // Update legal moves whenever selected square changes
-    useEffect(() => {
+    // Synchronously compute legal moves whenever selected square changes
+    const legalMoves = useMemo<Move[]>(() => {
       if (!selectedSquare || !interactive) {
-        setLegalMoves([]);
-        return;
+        return [];
       }
-      const moves = chess.moves({ square: selectedSquare, verbose: true });
-      setLegalMoves(moves);
+      return chess.moves({ square: selectedSquare, verbose: true });
     }, [selectedSquare, chess, currentFen, interactive]);
 
     // Fast lookup map for legal target squares
@@ -373,6 +408,7 @@ export const Chessboard: React.FC<ChessboardProps> = React.memo(
         try {
           const isCapture = Boolean(targetMove.captured);
           const isCastle = targetMove.san.includes('O-O');
+          const givesCheck = targetMove.san.includes('+') || targetMove.san.includes('#');
 
           if (isCapture) {
             setCaptureBurstSquare(to);
@@ -386,7 +422,7 @@ export const Chessboard: React.FC<ChessboardProps> = React.memo(
             onMove({ from, to, promotion });
           }
 
-          if (chess.inCheck()) {
+          if (givesCheck) {
             soundManager.playCheck();
           } else if (isCastle) {
             soundManager.playCastle();
@@ -412,7 +448,13 @@ export const Chessboard: React.FC<ChessboardProps> = React.memo(
         setUserArrows((prev) => (prev.length > 0 ? [] : prev));
         setMarkedSquares((prev) => (prev.length > 0 ? [] : prev));
 
-        if (!interactive || pendingPromotion) return;
+        if (!interactive) {
+          if (onDisabledInteract) {
+            onDisabledInteract();
+          }
+          return;
+        }
+        if (pendingPromotion) return;
 
         const piece = chess.get(square);
 
@@ -440,7 +482,15 @@ export const Chessboard: React.FC<ChessboardProps> = React.memo(
           setSelectedSquare(square);
         }
       },
-      [interactive, pendingPromotion, chess, selectedSquare, legalTargetMap, handleExecuteMove]
+      [
+        interactive,
+        onDisabledInteract,
+        pendingPromotion,
+        chess,
+        selectedSquare,
+        legalTargetMap,
+        handleExecuteMove,
+      ]
     );
 
     // Right-click tactical arrows and square markers
@@ -506,6 +556,44 @@ export const Chessboard: React.FC<ChessboardProps> = React.memo(
         setDraggingSquare(null);
       },
       [draggingSquare, handleExecuteMove]
+    );
+
+    // Mobile Touch Drag-and-Drop handlers
+    const handleTouchStart = useCallback(
+      (_e: React.TouchEvent, square: Square) => {
+        if (!interactive || pendingPromotion) return;
+        const piece = chess.get(square);
+        if (piece && piece.color === chess.turn()) {
+          touchStartSquareRef.current = square;
+          setDraggingSquare(square);
+          setSelectedSquare(square);
+        } else {
+          touchStartSquareRef.current = null;
+        }
+      },
+      [interactive, pendingPromotion, chess]
+    );
+
+    const handleTouchEnd = useCallback(
+      (e: React.TouchEvent, _square: Square) => {
+        setDraggingSquare(null);
+        const startSq = touchStartSquareRef.current;
+        touchStartSquareRef.current = null;
+        if (!interactive || pendingPromotion || !startSq) return;
+
+        const touch = e.changedTouches[0];
+        if (!touch) return;
+
+        const targetEl = document
+          .elementFromPoint(touch.clientX, touch.clientY)
+          ?.closest('[data-square]');
+        const targetSq = targetEl?.getAttribute('data-square') as Square | null;
+
+        if (targetSq && targetSq !== startSq) {
+          handleExecuteMove(startSq, targetSq);
+        }
+      },
+      [interactive, pendingPromotion, handleExecuteMove]
     );
 
     // Helper to compute SVG arrow coordinates (in 0..800 space)
@@ -584,13 +672,23 @@ export const Chessboard: React.FC<ChessboardProps> = React.memo(
 
               let squareBg = isLight ? colors.light : colors.dark;
               if (isSelected) {
-                squareBg = '#f5f676';
+                squareBg = colors.isDarkBoard ? '#266d58' : '#f5f676';
               } else if (isMarked) {
                 squareBg = isLight ? '#f48fb1' : '#d81b60';
               } else if (isLastMoveFrom || isLastMoveTo) {
-                squareBg = isLight ? '#d6e37a' : '#b2be42';
+                squareBg = colors.isDarkBoard
+                  ? isLastMoveTo
+                    ? '#1f5748'
+                    : '#1c463e'
+                  : isLight
+                  ? '#d6e37a'
+                  : '#b2be42';
               } else if (isHint) {
-                squareBg = isLight ? '#81c784' : '#4caf50';
+                squareBg = colors.isDarkBoard
+                  ? '#0e5e6f'
+                  : isLight
+                  ? '#81c784'
+                  : '#4caf50';
               }
 
               return (
@@ -602,6 +700,7 @@ export const Chessboard: React.FC<ChessboardProps> = React.memo(
                   showRankLabel={fileIdx === 0}
                   showFileLabel={rankIdx === 7}
                   isLight={isLight}
+                  isDarkBoard={Boolean(colors.isDarkBoard)}
                   squareBg={squareBg}
                   pieceType={piece?.type}
                   pieceColor={piece?.color}
@@ -621,6 +720,8 @@ export const Chessboard: React.FC<ChessboardProps> = React.memo(
                   onDragStart={handleDragStart}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
                   registerPieceRef={registerPieceRef}
                 />
               );
